@@ -1,6 +1,6 @@
 "use client";
 
-import { Home } from "lucide-react";
+import { Home, Info, Mail, ShieldCheck, FileText } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { NavLink } from "./nav-link";
 import Image from "next/image";
@@ -34,6 +34,13 @@ export function AppSidebar() {
       setOpenMobile(false);
     }
   };
+
+  const infoLinks = [
+    { title: "About", url: "/about", icon: Info },
+    { title: "Contact", url: "/contact", icon: Mail },
+    { title: "Privacy Policy", url: "/privacy", icon: ShieldCheck },
+    { title: "Terms of Service", url: "/terms", icon: FileText },
+  ];
 
   return (
     <Sidebar collapsible="offcanvas" className="h-full">
@@ -114,6 +121,41 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+
+        <SidebarGroup className="-mt-5 pb-10">
+          <SidebarGroupLabel>Platform</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {infoLinks.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    className="rounded"
+                    asChild
+                    isActive={isActive(item.url)}
+                    onClick={handleLinkClick}
+                  >
+                    <NavLink
+                      href={item.url}
+                      end
+                      className="hover:bg-sidebar-accent/50 group/nav-item"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+                    >
+                      <item.icon
+                        className={cn(
+                          "mr-2 h-4 w-4 transition-all text-foreground/70",
+                          isActive(item.url)
+                            ? "text-primary"
+                            : "group-hover/nav-item:text-foreground",
+                        )}
+                      />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
