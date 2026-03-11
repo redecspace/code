@@ -6,7 +6,7 @@ import { createWorker } from "tesseract.js";
 
 export interface OCROptions {
   OCRref?: any;
-  mode: "standard" | "premium";
+  mode: "standard" | "redecium";
   onProgress?: (message: string) => void;
 }
 
@@ -16,10 +16,10 @@ export const extractTextFromImage = async (
 ): Promise<string> => {
   const { mode, onProgress } = options;
 
-  if (mode === "premium") {
+  if (mode === "redecium") {
     onProgress?.("Please wait...");
 
-    // use tesseract-wasm for premium
+    // use tesseract-wasm for redecium
     if (!options.OCRref?.current) {
       options.OCRref.current = new OCRClient();
 

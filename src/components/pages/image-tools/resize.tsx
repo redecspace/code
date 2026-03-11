@@ -327,13 +327,13 @@ export default function ResizeImage() {
                         </div>
 
                         <div className="w-full sm:w-2/3 space-y-6">
-                          <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">
+                          <div className="flex gap-2 p-1 bg-muted rounded w-fit">
                             <Button
                               variant={
                                 resizeMode === "pixels" ? "default" : "ghost"
                               }
                               size="sm"
-                              className="h-8 text-xs font-bold"
+                              className="h-8 text-xs font-semibold"
                               onClick={() => setResizeMode("pixels")}
                             >
                               Pixels
@@ -345,7 +345,7 @@ export default function ResizeImage() {
                                   : "ghost"
                               }
                               size="sm"
-                              className="h-8 text-xs font-bold"
+                              className="h-8 text-xs font-semibold"
                               onClick={() => setResizeMode("percentage")}
                             >
                               Percentage
@@ -365,7 +365,7 @@ export default function ResizeImage() {
                                     onChange={(e) =>
                                       handleWidthChange(e.target.value)
                                     }
-                                    className="font-mono"
+                                    // className="font-mono"
                                   />
                                 </div>
                                 <div className="space-y-2">
@@ -378,7 +378,7 @@ export default function ResizeImage() {
                                     onChange={(e) =>
                                       handleHeightChange(e.target.value)
                                     }
-                                    className="font-mono"
+                                    // className="font-mono"
                                   />
                                 </div>
                               </div>
@@ -445,7 +445,7 @@ export default function ResizeImage() {
                           alt="Resized result"
                           className="max-w-full max-h-full object-contain"
                         />
-                        <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border border-white/20">
+                        <div className="absolute bottom-4 right-4 bg-black/70 text-white px-3 py-1 rounded text-[10px] font-bold backdrop-blur-sm border border-white/20">
                           {result.width} x {result.height}
                         </div>
                       </div>
@@ -525,11 +525,11 @@ export default function ResizeImage() {
                         <div className="h-10 w-10 bg-primary/10 rounded flex items-center justify-center">
                           <Scaling className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">
+                      <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-sm break-all line-clamp-1">
                             {item.result.width} x {item.result.height}
                           </p>
-                          <div className="flex flex-wrap gap-2 items-center">
+                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
@@ -605,7 +605,7 @@ export default function ResizeImage() {
               ].map((tip, i) => (
                 <div
                   key={i}
-                  className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/20 transition-colors"
+                  className="space-y-1.5 p-3 rounded bg-muted/50 border border-transparent hover:border-primary/20 transition-colors"
                 >
                   <p
                     className={cn(

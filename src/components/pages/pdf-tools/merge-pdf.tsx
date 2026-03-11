@@ -250,7 +250,7 @@ export default function MergePDF() {
                           <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Options</Label>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label htmlFor="gs-mode" className="text-[10px] font-bold uppercase text-muted-foreground">Premium</Label>
+                          <Label htmlFor="gs-mode" className="text-[10px] font-bold uppercase text-muted-foreground">Redecium</Label>
                           <Switch 
                             id="gs-mode" 
                             checked={isGsMode} 
@@ -261,7 +261,7 @@ export default function MergePDF() {
                       </div>
                       <p className="text-xs text-muted-foreground  leading-relaxed">
                         {isGsMode 
-                          ? "Premium mode uses Ghostscript WASM for professional merging and structural optimization." 
+                          ? "Redecium mode uses Ghostscript WASM for professional merging and structural optimization." 
                           : "Standard mode uses high-speed local merging."}
                       </p>
                     </div>
@@ -341,7 +341,7 @@ export default function MergePDF() {
                             {formatSize(item.result.size)}
                           </p>
                           <p className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium capitalize">
-                            {item.input.isGsMode ? "Premium" : "Standard"}
+                            {item.input.isGsMode ? "Redecium" : "Standard"}
                           </p>
                         </div>
                       </div>

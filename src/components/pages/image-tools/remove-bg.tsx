@@ -443,18 +443,18 @@ export default function RemoveBackground() {
                         <div className="h-10 min-w-10 bg-primary/10 rounded flex items-center justify-center">
                           <FileImage className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="overflow-hidden">
-                          <p className="font-medium text-sm line-clamp-1">
+                        <div className="grid gap-1">
+                          <p className="font-medium text-sm  break-all line-clamp-1">
                             {item.input.fileName}
                           </p>
                           <div className="flex flex-wrap gap-2 items-center">
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold uppercase">
+                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-semibold  uppercase">
                               PNG
                             </span>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold uppercase">
+                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-semibold uppercase">
                               {formatSize(item.result?.size || 0)}
                             </span>
                           </div>

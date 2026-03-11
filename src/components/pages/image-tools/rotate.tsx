@@ -422,15 +422,15 @@ export default function RotateImage() {
                         <div className="h-10 min-w-10 bg-primary/10 rounded flex items-center justify-center">
                           <RotateCw className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">
+                          <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-sm break-all line-clamp-1">
                             {item.input.angle}° Rotated
                           </p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold">
+                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-semibold">
                               {formatSize(item.result?.size || 0)}
                             </span>
                           </div>

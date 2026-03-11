@@ -675,13 +675,13 @@ export default function CropImage() {
                         <div className="h-10 w-10 bg-primary/10 rounded flex items-center justify-center">
                           <CropIcon className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">Image Cropped</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-sm break-all line-clamp-1">{ item.file?.name || "Image Cropped"}</p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                            <span className="text-[9px] bg-muted font-semibold text-muted-foreground px-2 py-0.5 rounded">
                               {formatSize(item.result?.size || 0)}
                             </span>
                           </div>
@@ -753,7 +753,7 @@ export default function CropImage() {
               ].map((tip, i) => (
                 <div
                   key={i}
-                  className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/20 transition-colors"
+                  className="space-y-1.5 p-3 rounded bg-muted/50 border border-transparent hover:border-primary/20 transition-colors"
                 >
                   <p
                     className={cn(

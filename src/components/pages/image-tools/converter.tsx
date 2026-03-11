@@ -203,7 +203,7 @@ export default function ImageConverter() {
                   {!result ? (
                     <div className="space-y-8">
                         <div className="flex flex-col sm:flex-row gap-8 items-center">
-                            <div className="w-full sm:w-1/3 aspect-square rounded-lg bg-muted overflow-hidden border relative group">
+                            <div className="w-full sm:w-1/3 aspect-square rounded  bg-muted overflow-hidden border relative group">
                                 <img src={preview!} alt="Preview" className="w-full h-full object-cover" />
                                 <button 
                                     onClick={reset}
@@ -214,7 +214,7 @@ export default function ImageConverter() {
                             </div>
                             
                             <div className="w-full sm:w-2/3 space-y-6">
-                                <div className="space-y-3">
+                                <div className="grid grid-cols-1 gap-3">
                                     <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Target Format</Label>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         {(["jpeg", "png", "webp", "avif"] as SupportedFormat[]).map((f) => (
@@ -232,7 +232,7 @@ export default function ImageConverter() {
                                 </div>
 
                                 {targetFormat !== "png" && (
-                                    <div className="space-y-4 pt-2">
+                                    <div className="space-y-2 pt-2">
                                         <div className="flex justify-between items-center">
                                             <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conversion Quality</Label>
                                             <span className="text-sm font-black text-primary">{quality}%</span>
@@ -322,16 +322,16 @@ export default function ImageConverter() {
                         <div className="h-10 w-10 bg-primary/10 rounded flex items-center justify-center">
                             <ArrowRightLeft className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="overflow-hidden">
-                          <p className="font-semibold text-sm truncate max-w-37.5 sm:max-w-xs">{item.input.originalName}</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-sm line-clamp-1 break-all">{item.input.originalName}</p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                                 {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold">
+                            <span className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded font-semibold ">
                                 {item.result.format}
                             </span>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold">
+                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-semibold">
                                 {formatSize(item.result?.size || 0)}
                             </span>
                           </div>
@@ -387,7 +387,7 @@ export default function ImageConverter() {
                 { title: "Transparency", desc: "Use PNG or WebP if your original image has a transparent background.", color: "text-blue-500" },
                 { title: "Compatibility", desc: "JPG is the most widely supported format for older software and systems.", color: "text-green-500" },
               ].map((tip, i) => (
-                <div key={i} className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/20 transition-colors">
+                <div key={i} className="space-y-1.5 p-3 rounded bg-muted/50 border border-transparent hover:border-primary/20 transition-colors">
                     <p className={cn("text-xs font-black uppercase tracking-widest", tip.color)}>{tip.title}</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">{tip.desc}</p>
                 </div>

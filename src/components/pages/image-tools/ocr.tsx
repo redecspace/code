@@ -47,7 +47,7 @@ export default function OCRImage() {
   const { title, description, about, features, steps } = OCR_IMAGE_CONTENT;
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [mode, setMode] = useState<"standard" | "premium">("premium");
+  const [mode, setMode] = useState<"standard" | "redecium">("redecium");
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState("");
   const [extractedText, setExtractedText] = useState<string | null>(null);
@@ -91,8 +91,8 @@ export default function OCRImage() {
           OCRref,
           onProgress: (msg) => setProgress(msg),
         });
-      } catch (premiumErr) {
-        if (mode === "premium") {
+      } catch (redeciumErr) {
+        if (mode === "redecium") {
           setProgress("Switching to standard engine...");
           text = await extractTextFromImage(file, {
             mode: "standard",
@@ -100,7 +100,7 @@ export default function OCRImage() {
             onProgress: (msg) => setProgress(msg),
           });
         } else {
-          throw premiumErr;
+          throw redeciumErr;
         }
       }
 
@@ -229,7 +229,7 @@ export default function OCRImage() {
                     </div>
                     <p className="text-lg font-bold">Upload Image for OCR</p>
                     <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                      Supports high-resolution scans. Choose Premium for best
+                      Supports high-resolution scans. Choose Redecium for best
                       accuracy.
                     </p>
                     <Button
@@ -266,30 +266,30 @@ export default function OCRImage() {
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <Settings2 className="h-4 w-4 text-primary" />
-                                  <Label className="text-sm font-bold uppercase text-muted-foreground">
+                              <Label className="text-sm font-bold uppercase text-muted-foreground">
                                 OCR Mode
                               </Label>
                             </div>
                             <div className="flex items-center gap-2">
                               <Label
-                                htmlFor="premium-mode"
-                                  className="text-[10px] font-bold text-muted-foreground"
+                                htmlFor="redecium-mode"
+                                className="text-[10px] font-bold text-muted-foreground"
                               >
-                                PREMIUM
+                                REDECIUM
                               </Label>
                               <Switch
-                                id="premium-mode"
-                                checked={mode === "premium"}
+                                id="redecium-mode"
+                                checked={mode === "redecium"}
                                 onCheckedChange={(val) =>
-                                  setMode(val ? "premium" : "standard")
+                                  setMode(val ? "redecium" : "standard")
                                 }
                                 disabled={isProcessing}
                               />
                             </div>
                           </div>
                           <p className="text-[10px] text-muted-foreground leading-relaxed">
-                            {mode === "premium"
-                              ? "Premium mode uses a high-precision engine for advanced document structure analysis and superior accuracy."
+                            {mode === "redecium"
+                              ? "Redecium mode uses a high-precision engine for advanced document structure analysis and superior accuracy."
                               : "Standard mode is fast and optimized for clean, clear text on high-contrast backgrounds."}
                           </p>
                         </div>
@@ -306,7 +306,10 @@ export default function OCRImage() {
 
                         {isProcessing && (
                           <div className="space-y-4">
-                            <Button className="w-full h-12 font-semibold" disabled>
+                            <Button
+                              className="w-full h-12 font-semibold"
+                              disabled
+                            >
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Extracting...
                             </Button>
@@ -324,13 +327,13 @@ export default function OCRImage() {
                   {extractedText && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                         <Label className="text-xs font-bold tracking-widest text-primary flex items-center gap-2">
+                        <Label className="text-xs font-bold tracking-widest text-primary flex items-center gap-2">
                           <FileText className="h-3 w-3" /> Extracted Result
                         </Label>
                         <Button
                           variant="ghost"
                           size="sm"
-                           className="h-7 text-[10px] font-semibold uppercase"
+                          className="h-7 text-[10px] font-semibold uppercase"
                           onClick={() => copyToClipboard(extractedText)}
                         >
                           <Copy className="mr-1.5 h-3 w-3" /> Copy Text
@@ -342,12 +345,12 @@ export default function OCRImage() {
                         </pre>
                       </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
                         <Button
-                       className="h-9 font-semibold"
+                          className="h-9 font-semibold"
                           onClick={() => handleDownloadClick(extractedText)}
                         >
-                           <FileDown className=" h-3 w-3" /> Export Text
+                          <FileDown className=" h-3 w-3" /> Export Text
                         </Button>
                       </div>
                     </div>
@@ -384,22 +387,23 @@ export default function OCRImage() {
                         <div className="h-10 min-w-10 bg-primary/10 rounded flex items-center justify-center">
                           <Zap className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="overflow-hidden">
-                                  <p className="font-semibold text-sm line-clamp-1">
+                        <div className="grid gap-1">
+                          <p className="font-semibold break-all text-sm line-clamp-1">
                             {item.input.fileName}
                           </p>
                           <div className="flex flex-wrap gap-2 items-center">
-                        <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
+                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
                             <span
                               className={cn(
-                                "text-[9px] px-2 py-0.5 rounded font-bold uppercase",
-                                item.input.mode === "premium"
+                                "text-[9px] px-2 py-0.5 rounded font-semibold uppercase",
+                                item.input.mode === "redecium"
                                   ? "bg-primary/10 text-primary"
                                   : "bg-muted text-muted-foreground",
                               )}
                             >
+                        
                               {item.input.mode}
                             </span>
                           </div>

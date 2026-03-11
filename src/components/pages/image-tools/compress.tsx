@@ -400,7 +400,7 @@ export default function CompressImage() {
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded font-bold">
+                            <span className="text-[9px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded font-semibold">
                               -
                               {Math.round(
                                 (1 -

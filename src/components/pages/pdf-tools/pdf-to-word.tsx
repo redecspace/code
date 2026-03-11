@@ -188,7 +188,7 @@ export default function PDFToWord() {
                           <Label className="text-sm font-bold uppercase   text-muted-foreground">Conversion</Label>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label htmlFor="gs-mode" className="text-[10px] font-semibold  text-muted-foreground">Premium</Label>
+                          <Label htmlFor="gs-mode" className="text-[10px] font-semibold  text-muted-foreground">Redecium</Label>
                           <Switch 
                             id="gs-mode" 
                             checked={isGsMode} 
@@ -199,7 +199,7 @@ export default function PDFToWord() {
                       </div>
                       <p className="text-xs  text-muted-foreground leading-relaxed tracking-tight">
                         {isGsMode 
-                          ? "Premium mode uses advanced layout analysis for better formatting." 
+                          ? "Redecium mode uses advanced layout analysis for better formatting." 
                           : "Standard mode uses high-speed text extraction."}
                       </p>
                     </div>
@@ -276,7 +276,7 @@ export default function PDFToWord() {
                             {formatSize(item.result.size)}
                           </span>
                           <span className="text-[9px] font-medium  bg-muted text-muted-foreground px-2 py-0.5 rounded">
-                            {item.input.isGsMode ? "Premium" : "Standard"}
+                            {item.input.isGsMode ? "Redecium" : "Standard"}
                           </span>
                         </div>
                       </div>
@@ -326,7 +326,7 @@ export default function PDFToWord() {
                   <div className="text-left">
                     <p className="font-semibold text-xs mb-1  tracking-tight text-foreground">Extraction</p>
                     <p className="text-[11px]  leading-relaxed text-muted-foreground ">
-                      Our engine extracts text and preserves basic layouts locally. For complex tables, Premium mode is recommended.
+                      Our engine extracts text and preserves basic layouts locally. For complex tables, Redecium mode is recommended.
                     </p>
                   </div>
                 </div>

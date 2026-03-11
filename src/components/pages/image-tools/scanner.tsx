@@ -578,13 +578,13 @@ export default function ImageScanner() {
                         <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
                           <CheckCircle2 className="h-5 w-5 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">Document Scanned</p>
+                        <div className="flex flex-col gap-1">
+                          <p className="font-semibold text-sm line-clamp-1 break-all">{item.file?.name || "Document Scanned"}</p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
                               {new Date(item.timestamp).toLocaleString()}
                             </p>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 font-semibold rounded">
                               {formatSize(item.result?.size || 0)}
                             </span>
                           </div>

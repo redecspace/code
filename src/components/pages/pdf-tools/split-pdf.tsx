@@ -201,7 +201,7 @@ export default function SplitPDF() {
                           <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Range Settings</Label>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Label htmlFor="gs-mode" className="text-[10px] font-bold uppercase text-muted-foreground">Premium</Label>
+                          <Label htmlFor="gs-mode" className="text-[10px] font-bold uppercase text-muted-foreground">Redecium</Label>
                           <Switch 
                             id="gs-mode" 
                             checked={isGsMode} 
@@ -238,7 +238,7 @@ export default function SplitPDF() {
                       
                       <p className="text-[10px] text-muted-foreground  leading-relaxed">
                         {isGsMode 
-                          ? "Premium mode uses Ghostscript WASM for high-accuracy splitting." 
+                          ? "Redecium mode uses Ghostscript WASM for high-accuracy splitting." 
                           : "Standard mode uses high-speed local extraction."}
                       </p>
                     </div>
@@ -319,7 +319,7 @@ export default function SplitPDF() {
                             Pages {item.input.range}
                           </p>
                           <p className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
-                            {formatSize(item.result.size)} ({item.input.isGsMode ? "Premium" : "Standard"})
+                            {formatSize(item.result.size)} ({item.input.isGsMode ? "Redecium" : "Standard"})
                           </p>
                   
                         </div>

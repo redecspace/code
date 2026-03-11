@@ -239,7 +239,7 @@ export default function CompressPDF() {
                             htmlFor="gs-mode"
                             className="text-[10px] font-bold uppercase text-muted-foreground"
                           >
-                            Premium
+                            Redecium
                           </Label>
                           <Switch
                             id="gs-mode"
@@ -258,7 +258,7 @@ export default function CompressPDF() {
                           title="Less"
                           description={
                             isGsMode
-                              ? "Premium High Quality (300 DPI)."
+                              ? "Redecium High Quality (300 DPI)."
                               : "Structural optimization. No image quality loss."
                           }
                           disabled={isCompressing}
@@ -270,7 +270,7 @@ export default function CompressPDF() {
                           title="Medium"
                           description={
                             isGsMode
-                              ? "Premium Balanced (150 DPI)."
+                              ? "Redecium Balanced (150 DPI)."
                               : "Balanced. Good for web and screens."
                           }
                           disabled={isCompressing}
@@ -282,7 +282,7 @@ export default function CompressPDF() {
                           title="Extreme"
                           description={
                             isGsMode
-                              ? "Premium Smallest (72 DPI)."
+                              ? "Redecium Smallest (72 DPI)."
                               : "Aggressive. Best for email and slow networks."
                           }
                           disabled={isCompressing}
@@ -323,7 +323,7 @@ export default function CompressPDF() {
                               </span>
                             </div>
                             <p className="text-[10px] w-full text-muted-foreground leading-tight">
-                              Min 50KB recommended for Premium.
+                              Min 50KB recommended for Redecium.
                             </p>
                           </div>
                         </div>
@@ -428,7 +428,7 @@ export default function CompressPDF() {
                           </p>
                           <p className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium capitalize">
                             {item.input.tier}{" "}
-                            {item.input.isGsMode ? "(Premium)" : ""}
+                            {item.input.isGsMode ? "(Redecium)" : ""}
                           </p>
                         </div>
                       </div>
