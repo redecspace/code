@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { FaEyeDropper } from "react-icons/fa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
   Download,
   Upload,
@@ -24,7 +26,7 @@ import { REMOVE_BG_CONTENT } from "@/data/tools/image-tools/remove-bg";
 import { db } from "@/lib/db";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
-import  imglyRemoveBackground,{ removeBackground, Config } from "@imgly/background-removal";
+import { removeBackground } from "@imgly/background-removal";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export default function RemoveBackground() {
   const [result, setResult] = useState<{ url: string; blob: Blob } | null>(
     null,
   );
+  const [bgColor, setBgColor] = useState<string>("transparent");
 
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg" | "webp">(
@@ -59,6 +62,7 @@ export default function RemoveBackground() {
       setFile(selectedFile);
       setResult(null);
       setProgress(null);
+      setBgColor("transparent");
       const reader = new FileReader();
       reader.onload = (event) => setPreview(event.target?.result as string);
       reader.readAsDataURL(selectedFile);
@@ -70,24 +74,12 @@ export default function RemoveBackground() {
   const handleRemoveBackground = async () => {
     if (!file) return;
     setIsProcessing(true);
-    setProgress("Initializing AI engine...");
-
-    const public_path = "https://huggingface.co/datasets/redecspace/serve/resolve/main/photo-editor/dist/";
-
-    const config: Config = {
-      publicPath: public_path, // path to the wasm files
-    };
-    const image_src: ImageData | ArrayBuffer | Uint8Array | Blob | URL | string = file;
-
+    setProgress("Pleas wait...");
 
     try {
-  
-      const blob = await removeBackground(image_src, {
-       publicPath: config.publicPath,
-        progress: (key, current, total) => {
-          // const percent = Math.round((current / total) * 100);
-          setProgress(`Processing: %`);
-        },
+      const blob = await removeBackground(file, {
+        publicPath:  "https://huggingface.co/datasets/redecspace/serve/resolve/main/photo-editor/dist/",
+        progress: () => setProgress("Processing..."),
       });
 
       const url = URL.createObjectURL(blob);
@@ -124,8 +116,8 @@ export default function RemoveBackground() {
       canvas.height = img.height;
       const ctx = canvas.getContext("2d")!;
 
-      if (selectedFormat === "jpeg") {
-        ctx.fillStyle = "#FFFFFF";
+      if (bgColor !== "transparent") {
+        ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -149,6 +141,18 @@ export default function RemoveBackground() {
       toast.error("Download failed");
     }
     setActiveBlob(null);
+  };
+
+  const putBackFromHistory = (item: any) => {
+    if (!item.file?.blob) return;
+    if (result) URL.revokeObjectURL(result.url);
+    const blob = item.file.blob;
+    const url = URL.createObjectURL(blob);
+    setFile(new File([blob], item.input.fileName, { type: "image/png" }));
+    setPreview(url);
+    setResult({ url, blob });
+    setBgColor("transparent");
+    toast.success("Result loaded back for editing");
   };
 
   const saveToHistory = async (blob: Blob, originalName: string) => {
@@ -179,17 +183,7 @@ export default function RemoveBackground() {
     setPreview(null);
     setResult(null);
     setProgress(null);
-  };
-
-  const copyToClipboard = async () => {
-    if (!result) return;
-    try {
-      const item = new ClipboardItem({ "image/png": result.blob });
-      await navigator.clipboard.write([item]);
-      toast.success("Copied to clipboard!");
-    } catch (err) {
-      toast.error("Failed to copy image");
-    }
+    setBgColor("transparent");
   };
 
   return (
@@ -204,7 +198,7 @@ export default function RemoveBackground() {
         <p className="text-muted-foreground mt-2">{description}</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1  xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
           <Card
             className={cn(
@@ -250,16 +244,24 @@ export default function RemoveBackground() {
               ) : (
                 <div className="space-y-6">
                   <div className="flex flex-col gap-6 items-center">
-                    <div className="w-full max-w-md aspect-square rounded bg-black overflow-hidden border relative group shrink-0 flex items-center justify-center">
+                    <div
+                      className={cn(
+                        "w-full max-w-md aspect-square rounded overflow-hidden border relative group shrink-0 flex items-center justify-center",
+                        result && bgColor === "transparent"
+                          ? "bg-[conic-gradient(#ccc_25%,transparent_0_50%,#ccc_0_75%,transparent_0)] bg-size-[16px_16px] bg-white"
+                          : "bg-black",
+                      )}
+                      style={{
+                        backgroundColor:
+                          result && bgColor !== "transparent"
+                            ? bgColor
+                            : undefined,
+                      }}
+                    >
                       <img
                         src={result?.url || preview!}
                         alt="Preview"
-                        className={cn(
-                          "w-full h-full object-contain",
-                          result
-                            ? "bg-[url('/placeholder.svg')] bg-repeat"
-                            : "",
-                        )}
+                        className="w-full h-full object-contain"
                       />
                       {result && (
                         <div className="absolute top-2 left-2 bg-primary text-primary-foreground px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
@@ -273,6 +275,77 @@ export default function RemoveBackground() {
                         <X className="h-3 w-3" />
                       </button>
                     </div>
+
+                    {result && (
+                      <div className="w-full max-w-md space-y-4 animate-in fade-in slide-in-from-top-2">
+                        <div className="p-4 bg-background rounded border space-y-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                              Background Color
+                            </Label>
+                            <div className="flex flex-wrap gap-2 items-center"></div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <div className="gap-2 rounded flex items-center justify-center">
+                              <label htmlFor="color-input">
+                                <FaEyeDropper className="size-4 text-foreground" />
+                              </label>
+
+                              <div className="relative h-6 w-12">
+                                {bgColor === "transparent" && (
+                                  <div className="absolute inset-0 rounded border bg-[conic-gradient(#ccc_25%,transparent_0_50%,#ccc_0_75%,transparent_0)] bg-size-[6px_6px]" />
+                                )}
+
+                                <Input
+                                  id="color-input"
+                                  type="color"
+                                  value={
+                                    bgColor === "transparent"
+                                      ? "#ffffff"
+                                      : bgColor
+                                  }
+                                  onChange={(e) => setBgColor(e.target.value)}
+                                  className={`h-6  w-12 border ${bgColor === "transparent" && "opacity-0"} p-0 bg-transparent cursor-pointer relative z-10`}
+                                />
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => setBgColor("transparent")}
+                              className={cn(
+                                "flex items-center justify-center w-6 h-6 rounded border transition-colors bg-white",
+                                bgColor === "transparent"
+                                  ? "ring-2 ring-primary ring-offset-2"
+                                  : "hover:bg-transparent",
+                              )}
+                            >
+                              <div className="w-6 h-6 rounded border bg-[conic-gradient(#ccc_25%,transparent_0_50%,#ccc_0_75%,transparent_0)] bg-size-[6px_6px]" />
+                            </button>
+                            {[
+                              "#FFFFFF",
+                              "#000000",
+                              "#F87171",
+                              "#4ADE80",
+                              "#60A5FA",
+                              "#FB923C",
+                              "#A78BFA",
+                            ].map((color) => (
+                              <button
+                                key={color}
+                                onClick={() => setBgColor(color)}
+                                className={cn(
+                                  "h-6 w-6 rounded border transition-transform hover:scale-110",
+                                  bgColor === color
+                                    ? "ring-2 ring-primary ring-offset-2"
+                                    : "",
+                                )}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {!result && (
                       <div className="w-full space-y-6 max-w-md">
@@ -292,7 +365,7 @@ export default function RemoveBackground() {
 
                         {!isProcessing && (
                           <Button
-                            className="w-full h-12 font-bold uppercase tracking-widest"
+                            className="w-full h-12 uppercase tracking-widest font-black"
                             onClick={handleRemoveBackground}
                           >
                             <Zap className="mr-2 h-4 w-4" /> Remove Background
@@ -306,7 +379,7 @@ export default function RemoveBackground() {
                               disabled
                             >
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Analyzing Subject...
+                              Analyzing Subject
                             </Button>
                             {progress && (
                               <p className="text-[10px] font-bold text-primary animate-pulse uppercase tracking-widest text-center">
@@ -324,13 +397,13 @@ export default function RemoveBackground() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-6 border-t">
                         <Button
                           variant="outline"
-                          className="h-11 font-semibold uppercase tracking-wider"
+                          className="h-11 font-semibold uppercase tracking-wider rounded"
                           onClick={reset}
                         >
                           <FilePlus className="mr-2 h-4 w-4" /> New Image
                         </Button>
                         <Button
-                          className="h-11 font-semibold uppercase tracking-wider"
+                          className="h-11 font-semibold uppercase tracking-wider rounded"
                           onClick={() => handleDownloadClick()}
                         >
                           <Download className="mr-2 h-4 w-4" /> Download
@@ -375,7 +448,7 @@ export default function RemoveBackground() {
                             {item.input.fileName}
                           </p>
                           <div className="flex flex-wrap gap-2 items-center">
-                            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-wider">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
                             <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold uppercase">
@@ -389,15 +462,28 @@ export default function RemoveBackground() {
                       </div>
                       <div className="flex gap-2">
                         {item.file?.blob && (
-                          <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-8 w-8 rounded-full"
-                            title="Download"
-                            onClick={() => handleDownloadClick(item.file!.blob)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          <>
+                            <Button
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              title="Put back"
+                              onClick={() => putBackFromHistory(item)}
+                            >
+                              <Maximize className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-full bg-background"
+                              title="Download"
+                              onClick={() =>
+                                handleDownloadClick(item.file!.blob)
+                              }
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         <Button
                           variant="ghost"
@@ -481,17 +567,17 @@ export default function RemoveBackground() {
               Export Format
             </DialogTitle>
             <p className="text-sm text-muted-foreground text-left">
-              Choose your preferred image format for export. PNG is recommended
-              for transparency.
+              Choose your preferred image format. Your background choice will be
+              preserved.
             </p>
           </DialogHeader>
           <div className="py-6 flex flex-col items-center gap-6">
             <div className="grid grid-cols-3 gap-3 w-full">
               {(
                 [
-                  { id: "png", label: "PNG", desc: "Transparent" },
-                  { id: "jpeg", label: "JPG", desc: "White BG" },
-                  { id: "webp", label: "WebP", desc: "Modern" },
+                  { id: "png", label: "PNG", desc: "High Quality" },
+                  { id: "jpeg", label: "JPG", desc: "Standard" },
+                  { id: "webp", label: "WebP", desc: "Optimized" },
                 ] as const
               ).map((fmt) => (
                 <button
