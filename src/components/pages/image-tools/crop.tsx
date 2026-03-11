@@ -507,62 +507,92 @@ export default function CropImage() {
 
                         {/* Backdrop shadows */}
                         <div className="absolute inset-0 pointer-events-none">
-                          <div
-                            className="absolute bg-transparent border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] z-10 pointer-events-auto"
-                            style={{
-                              left: `${crop.x}%`,
-                              top: `${crop.y}%`,
-                              width: `${crop.width}%`,
-                              height: `${crop.height}%`,
-                            }}
-                          >
-                            {/* Crop Grid */}
-                            <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30 pointer-events-none">
-                              <div className="border-r border-b border-white"></div>
-                              <div className="border-r border-b border-white"></div>
-                              <div className="border-b border-white"></div>
-                              <div className="border-r border-b border-white"></div>
-                              <div className="border-r border-b border-white"></div>
-                              <div className="border-b border-white"></div>
-                              <div className="border-r border-white"></div>
-                              <div className="border-r border-white"></div>
-                              <div></div>
-                            </div>
-
-                            {/* Move Handle */}
+                          {aspectRatio !== "perspective" ? (
                             <div
-                              className="absolute inset-0 cursor-move flex items-center justify-center group pointer-events-auto"
-                              onMouseDown={(e) => handleDrag(e, "move")}
-                              onTouchStart={(e) => handleDrag(e, "move")}
-                            >
-                              <Move className="h-6 w-6 text-white/50 group-active:text-white transition-colors opacity-0 group-hover:opacity-100" />
-                            </div>
-
-                            {/* Resize Handle (Bottom Right) */}
-                            <div
-                              className="absolute bottom-0 right-0 h-10 w-10 cursor-nwse-resize flex items-center justify-center pointer-events-auto z-20"
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                handleDrag(e, "resize");
-                              }}
-                              onTouchStart={(e) => {
-                                e.stopPropagation();
-                                handleDrag(e, "resize");
+                              className="absolute bg-transparent border-2 border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] z-10 pointer-events-auto"
+                              style={{
+                                left: `${crop.x}%`,
+                                top: `${crop.y}%`,
+                                width: `${crop.width}%`,
+                                height: `${crop.height}%`,
                               }}
                             >
-                              <div className="h-4 w-4 bg-white border-2 border-primary rounded-full shadow-lg" />
+                              {/* Crop Grid */}
+                              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-30 pointer-events-none">
+                                <div className="border-r border-b border-white"></div>
+                                <div className="border-r border-b border-white"></div>
+                                <div className="border-b border-white"></div>
+                                <div className="border-r border-b border-white"></div>
+                                <div className="border-r border-b border-white"></div>
+                                <div className="border-b border-white"></div>
+                                <div className="border-r border-white"></div>
+                                <div className="border-r border-white"></div>
+                                <div></div>
+                              </div>
+
+                              {/* Move Handle */}
+                              <div
+                                className="absolute inset-0 cursor-move flex items-center justify-center group pointer-events-auto"
+                                onMouseDown={(e) => handleDrag(e, "move")}
+                                onTouchStart={(e) => handleDrag(e, "move")}
+                              >
+                                <Move className="h-6 w-6 text-white/50 group-active:text-white transition-colors opacity-0 group-hover:opacity-100" />
+                              </div>
+
+                              {/* Resize Handle (Bottom Right) */}
+                              <div
+                                className="absolute bottom-0 right-0 h-10 w-10 cursor-nwse-resize flex items-center justify-center pointer-events-auto z-20"
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  handleDrag(e, "resize");
+                                }}
+                                onTouchStart={(e) => {
+                                  e.stopPropagation();
+                                  handleDrag(e, "resize");
+                                }}
+                              >
+                                <div className="h-4 w-4 bg-white border-2 border-primary rounded-full shadow-lg" />
+                              </div>
                             </div>
-                          </div>
+                          ) : (
+                            <div className="absolute inset-0 pointer-events-auto overflow-visible">
+                              <svg
+                                className="w-full h-full overflow-visible"
+                                viewBox="0 0 100 100"
+                                preserveAspectRatio="none"
+                              >
+                                <path
+                                  d={`M ${corners[0].x} ${corners[0].y} L ${corners[1].x} ${corners[1].y} L ${corners[2].x} ${corners[2].y} L ${corners[3].x} ${corners[3].y} Z`}
+                                  fill="rgba(59, 130, 246, 0.2)"
+                                  stroke="white"
+                                  strokeWidth="0.5"
+                                  strokeDasharray="2 1"
+                                />
+                              </svg>
+                              {corners.map((p, i) => (
+                                <div
+                                  key={i}
+                                  className="absolute h-6 w-6 -ml-3 -mt-3 cursor-move flex items-center justify-center z-30"
+                                  style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                                  onMouseDown={(e) => handlePointDrag(i, e)}
+                                  onTouchStart={(e) => handlePointDrag(i, e)}
+                                >
+                                  <div className="h-3 w-3 bg-white border-2 border-primary rounded-full shadow-md" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                       <p className="text-[10px] text-muted-foreground text-center italic">
-                        Drag the center to move, or the bottom-right corner to
-                        resize.
+                        {aspectRatio === "perspective"
+                          ? "Drag the four corners to define the perspective area."
+                          : "Drag the center to move, or the bottom-right corner to resize."}
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      <div className="relative w-full aspect-4/3 max-w-md mx-auto bg-white rounded shadow-2xl overflow-hidden flex items-center justify-center border-8 border-muted">
+                      <div className="relative w-full aspect-4/3 max-w-full mx-auto bg-white rounded shadow-2xl overflow-hidden flex items-center justify-center border-8 border-muted">
                         <img
                           src={result.url}
                           alt="Cropped result"
