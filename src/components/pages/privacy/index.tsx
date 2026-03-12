@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-primary uppercase tracking-wider text-xs">2. Local Processing (Client-Side)</h2>
+          <h2 className="text-lg font-bold">2. Local Processing (Client-Side)</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               Most of the tools provided on {APP_NAME} operate entirely within your web browser. This means that your files, images, and data are processed locally on your device and are **never uploaded to our servers**. This applies to our PDF tools, Image tools, and most generators.
             </p>

@@ -52,7 +52,7 @@ export default function TermsPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-bold text-primary uppercase tracking-wider text-xs">5. Data and Privacy</h2>
+                <h2 className="text-lg font-bold">5. Data and Privacy</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
               While we strive to process all data locally on your device, you are responsible for the content you process using our tools. You must ensure that you have the necessary rights to any data or files you process on our platform.
             </p>

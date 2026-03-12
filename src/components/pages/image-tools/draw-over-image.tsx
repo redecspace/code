@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ import {
   FileImage,
   Maximize,
   Palette,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import { cn, formatSize } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -35,6 +37,15 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { DRAW_OVER_IMAGE_CONTENT } from "@/data/tools/image-tools/draw-over-image";
+
+// Custom cursor SVGs
+const penCursor = `data:image/svg+xml;base64,${btoa(`
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#6366F1" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"> <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/> <path d="m15 5 4 4"/> </svg>
+`)}`;
+
+const eraserCursor = `data:image/svg+xml;base64,${btoa(`
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"> <g transform="rotate(-30 16 16)"> <!-- Eraser body --> <rect x="6" y="12" width="20" height="10" rx="2" ry="2" fill="#6366f1" stroke="#000000" stroke-width="1.5"/> <!-- Eraser sleeve --> <rect x="6" y="16" width="20" height="4" fill="#6366f1" stroke="#000000" stroke-width="1.5"/> </g> </svg>
+`)}`;
 
 export default function DrawOverImage() {
   const { title, description, about, features, steps } = DRAW_OVER_IMAGE_CONTENT;
@@ -52,6 +63,12 @@ export default function DrawOverImage() {
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg" | "webp">("png");
 
+  const [displayDims, setDisplayDims] = useState<{ w: number; h: number } | null>(null);
+
+  // Undo/Redo stacks (store ImageData)
+  const [undoStack, setUndoStack] = useState<ImageData[]>([]);
+  const [redoStack, setRedoStack] = useState<ImageData[]>([]);
+
   const imageCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCtxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -61,110 +78,197 @@ export default function DrawOverImage() {
     db.history.where("toolUrl").equals("/draw-over-image").reverse().toArray()
   );
 
-  // Canvas setup
-  useEffect(() => {
-    const annotationCanvas = annotationCanvasRef.current;
-    if (!annotationCanvas) return;
+  // Helper to save current state
+  const saveState = useCallback(() => {
+    const canvas = annotationCanvasRef.current;
+    const ctx = annotationCtxRef.current;
+    if (!canvas || !ctx || !displayDims) return;
 
-    const ctx = annotationCanvas.getContext("2d");
-    if (!ctx) return;
-    annotationCtxRef.current = ctx;
+    const dpr = window.devicePixelRatio || 1;
+    const imageData = ctx.getImageData(0, 0, displayDims.w * dpr, displayDims.h * dpr);
+    
+    setUndoStack(prev => [...prev, imageData]);
+    setRedoStack([]);
+    setHasAnnotations(true);
+  }, [displayDims]);
 
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
+  // Undo logic
+  const undo = useCallback(() => {
+    if (undoStack.length === 0) return;
 
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [file]);
+    const canvas = annotationCanvasRef.current;
+    const ctx = annotationCtxRef.current;
+    if (!canvas || !ctx || !displayDims) return;
 
-  // Redraw image when preview changes
-  useEffect(() => {
-    if (preview) {
-      redrawImage();
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Save current to redo
+    const currentImg = ctx.getImageData(0, 0, displayDims.w * dpr, displayDims.h * dpr);
+    setRedoStack(prev => [...prev, currentImg]);
+
+    // Pop from undo
+    const newUndo = [...undoStack];
+    const prevImg = newUndo.pop()!;
+    setUndoStack(newUndo);
+
+    ctx.putImageData(prevImg, 0, 0);
+    
+    if (newUndo.length === 0) {
+      setHasAnnotations(false);
     }
-  }, [preview]);
+    updateResultFromCanvas();
+  }, [undoStack, displayDims]);
 
-  const resizeCanvas = () => {
-    const imgCanvas = imageCanvasRef.current;
-    const annCanvas = annotationCanvasRef.current;
-    if (!imgCanvas || !annCanvas || !containerRef.current) return;
+  // Redo logic
+  const redo = useCallback(() => {
+    if (redoStack.length === 0) return;
 
-    const rect = containerRef.current.getBoundingClientRect();
+    const canvas = annotationCanvasRef.current;
+    const ctx = annotationCtxRef.current;
+    if (!canvas || !ctx || !displayDims) return;
+
     const dpr = window.devicePixelRatio || 1;
 
-    // Capture current annotations before resize
+    // Save current to undo
+    const currentImg = ctx.getImageData(0, 0, displayDims.w * dpr, displayDims.h * dpr);
+    setUndoStack(prev => [...prev, currentImg]);
+
+    // Pop from redo
+    const newRedo = [...redoStack];
+    const nextImg = newRedo.pop()!;
+    setRedoStack(newRedo);
+
+    ctx.putImageData(nextImg, 0, 0);
+    setHasAnnotations(true);
+    updateResultFromCanvas();
+  }, [redoStack, displayDims]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      const isShift = e.shiftKey;
+
+      if (isCmdOrCtrl && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (isShift) {
+          redo();
+        } else {
+          undo();
+        }
+      } else if (isCmdOrCtrl && e.key.toLowerCase() === 'y') {
+        // Windows typical redo
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
+  // Setup canvases when dimensions change
+  useEffect(() => {
+    if (!displayDims || !file) return;
+
+    const annCanvas = annotationCanvasRef.current;
+    const imgCanvas = imageCanvasRef.current;
+    if (!annCanvas || !imgCanvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+
+    // Save existing annotations before resize if any
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = annCanvas.width;
     tempCanvas.height = annCanvas.height;
     const tempCtx = tempCanvas.getContext("2d");
     if (tempCtx) tempCtx.drawImage(annCanvas, 0, 0);
 
-    // Resize both
-    [imgCanvas, annCanvas].forEach((canvas) => {
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
+    // Set internal resolution
+    [annCanvas, imgCanvas].forEach((canvas) => {
+      canvas.width = displayDims.w * dpr;
+      canvas.height = displayDims.h * dpr;
+      canvas.style.width = `${displayDims.w}px`;
+      canvas.style.height = `${displayDims.h}px`;
     });
 
-    const annCtx = annotationCtxRef.current;
+    const annCtx = annCanvas.getContext("2d");
     if (annCtx) {
       annCtx.scale(dpr, dpr);
       annCtx.lineCap = "round";
       annCtx.lineJoin = "round";
-      // Restore annotations scaled (simplified restoration)
-      annCtx.drawImage(tempCanvas, 0, 0, rect.width, rect.height);
+      annotationCtxRef.current = annCtx;
+      // Restore scaled
+      if (tempCanvas.width > 0) {
+        annCtx.drawImage(tempCanvas, 0, 0, displayDims.w, displayDims.h);
+      }
     }
 
     const imgCtx = imgCanvas.getContext("2d");
     if (imgCtx) {
       imgCtx.scale(dpr, dpr);
-      redrawImage();
+      redrawImage(imgCtx, displayDims.w, displayDims.h);
     }
+  }, [displayDims, file]);
+
+  // Recalculate display dimensions on resize or file change
+  useEffect(() => {
+    if (!preview || !containerRef.current) return;
+
+    const img = new Image();
+    img.src = preview;
+    img.onload = () => {
+      calculateDisplayDims(img.width, img.height);
+    };
+
+    const handleResize = () => {
+      if (img.complete) calculateDisplayDims(img.width, img.height);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [preview]);
+
+  const calculateDisplayDims = (imgW: number, imgH: number) => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    
+    // Max height for the editor container
+    const MAX_HEIGHT = 500; 
+    const scale = Math.min(
+      container.clientWidth / imgW,
+      MAX_HEIGHT / imgH,
+      1 // don't upscale beyond original
+    );
+    
+    setDisplayDims({ w: imgW * scale, h: imgH * scale });
   };
 
-  const redrawImage = () => {
-    const canvas = imageCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr);
-
-    if (preview) {
-      const img = new Image();
-      img.src = preview;
-      img.crossOrigin = "anonymous";
-
-      const drawImage = () => {
-        const scale = Math.min(
-          canvas.width / (img.width * dpr),
-          canvas.height / (img.height * dpr)
-        );
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const x = (canvas.width / dpr - w) / 2;
-        const y = (canvas.height / dpr - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
-      };
-
-      img.onload = drawImage;
-      if (img.complete) drawImage();
-    }
+  const redrawImage = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    if (!preview) return;
+    const img = new Image();
+    img.src = preview;
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+    };
   };
 
   // ── Drawing handlers ────────────────────────────────────────────────
   const startDrawing = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!annotationCanvasRef.current || !annotationCtxRef.current) return;
+    if (!annotationCtxRef.current || !annotationCanvasRef.current) return;
+    
+    // Save state BEFORE starting a new stroke for undo
+    saveState();
+    
     setIsDrawing(true);
 
     const canvas = annotationCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio;
-    const x = ((e.clientX - rect.left) * (canvas.width / rect.width)) / dpr;
-    const y = ((e.clientY - rect.top) * (canvas.height / rect.height)) / dpr;
+    
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
 
     const ctx = annotationCtxRef.current;
     ctx.beginPath();
@@ -175,19 +279,19 @@ export default function DrawOverImage() {
   };
 
   const draw = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawing || !annotationCanvasRef.current || !annotationCtxRef.current) return;
+    if (!isDrawing || !annotationCtxRef.current || !annotationCanvasRef.current) return;
 
     const canvas = annotationCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio;
-    const x = ((e.clientX - rect.left) * (canvas.width / rect.width)) / dpr;
-    const y = ((e.clientY - rect.top) * (canvas.height / rect.height)) / dpr;
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
 
     annotationCtxRef.current.lineTo(x, y);
     annotationCtxRef.current.stroke();
   };
 
   const stopDrawing = () => {
+    if (!isDrawing) return;
     setIsDrawing(false);
     annotationCtxRef.current?.closePath();
     updateResultFromCanvas();
@@ -203,9 +307,11 @@ export default function DrawOverImage() {
 
   const clearCanvas = () => {
     const ctx = annotationCtxRef.current;
-    if (ctx && annotationCanvasRef.current) {
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, annotationCanvasRef.current.width / dpr, annotationCanvasRef.current.height / dpr);
+    if (ctx && displayDims) {
+      // Save state for undo before clearing
+      saveState();
+      ctx.clearRect(0, 0, displayDims.w, displayDims.h);
+      setHasAnnotations(false);
       setResult(null);
     }
   };
@@ -220,36 +326,43 @@ export default function DrawOverImage() {
 
     setFile(selectedFile);
     setResult(null);
-    clearCanvas();
+    setHasAnnotations(false);
+    setUndoStack([]);
+    setRedoStack([]);
 
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setPreview(dataUrl);
+      setPreview(ev.target?.result as string);
     };
     reader.readAsDataURL(selectedFile);
   };
 
   const getMergedBlob = (format: "png" | "jpeg" | "webp" = "png"): Promise<Blob | null> => {
     return new Promise((resolve) => {
-      const imgCanvas = imageCanvasRef.current;
-      const annCanvas = annotationCanvasRef.current;
-      if (!imgCanvas || !annCanvas) return resolve(null);
+      if (!preview || !displayDims) return resolve(null);
 
-      const finalCanvas = document.createElement("canvas");
-      finalCanvas.width = imgCanvas.width;
-      finalCanvas.height = imgCanvas.height;
-      const fCtx = finalCanvas.getContext("2d");
-      if (!fCtx) return resolve(null);
+      const img = new Image();
+      img.src = preview;
+      img.onload = () => {
+        const exportCanvas = document.createElement("canvas");
+        exportCanvas.width = img.width;
+        exportCanvas.height = img.height;
+        const eCtx = exportCanvas.getContext("2d");
+        if (!eCtx) return resolve(null);
 
-      // Draw background image layer
-      fCtx.drawImage(imgCanvas, 0, 0);
-      // Draw annotation layer on top
-      fCtx.drawImage(annCanvas, 0, 0);
+        // 1. Draw original high-res image
+        eCtx.drawImage(img, 0, 0);
 
-      const mime = format === "jpeg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
-      const quality = format === "png" ? undefined : 0.92;
-      finalCanvas.toBlob((b) => resolve(b), mime, quality);
+        // 2. Draw annotations scaled to original size
+        const annCanvas = annotationCanvasRef.current;
+        if (annCanvas) {
+          eCtx.drawImage(annCanvas, 0, 0, img.width, img.height);
+        }
+
+        const mime = format === "jpeg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
+        const quality = format === "png" ? undefined : 0.92;
+        exportCanvas.toBlob((b) => resolve(b), mime, quality);
+      };
     });
   };
 
@@ -335,7 +448,9 @@ export default function DrawOverImage() {
     setFile(new File([blob], item.input?.fileName || "annotated.png", { type: "image/png" }));
     setPreview(url);
     setResult({ url, blob });
-    clearCanvas();
+    setHasAnnotations(false);
+    setUndoStack([]);
+    setRedoStack([]);
 
     toast.success("Loaded for editing");
   };
@@ -344,7 +459,10 @@ export default function DrawOverImage() {
     setFile(null);
     setPreview(null);
     setResult(null);
-    clearCanvas();
+    setHasAnnotations(false);
+    setDisplayDims(null);
+    setUndoStack([]);
+    setRedoStack([]);
   };
 
   const clearAllHistory = async () => {
@@ -402,22 +520,61 @@ export default function DrawOverImage() {
               ) : (
                 <div className="space-y-6">
                   <div className="flex flex-col gap-4 items-center">
+                    <div className="w-full max-w-3xl flex justify-between items-end mb-1 px-1">
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full" 
+                          onClick={undo}
+                          disabled={undoStack.length === 0}
+                          title="Undo (Ctrl+Z)"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full" 
+                          onClick={redo}
+                          disabled={redoStack.length === 0}
+                          title="Redo (Ctrl+Shift+Z)"
+                        >
+                          <Redo2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">
+                        Canvas Editor
+                      </p>
+                    </div>
+
                     <div
                       ref={containerRef}
-                      className="w-full max-w-3xl aspect-4/3 rounded border overflow-hidden bg-muted/30 relative"
+                      className="w-full max-w-full min-h-75 rounded border overflow-hidden bg-muted/30 relative flex items-center justify-center p-0"
                     >
-                      <canvas
-                        ref={imageCanvasRef}
-                        className="absolute inset-0 pointer-events-none"
-                      />
-                      <canvas
-                        ref={annotationCanvasRef}
-                        className="absolute inset-0 touch-none z-10"
-                        onPointerDown={startDrawing}
-                        onPointerMove={draw}
-                        onPointerUp={stopDrawing}
-                        onPointerOut={stopDrawing}
-                      />
+                      <div 
+                        className="relative shadow-xl bg-white dark:bg-black overflow-hidden"
+                        style={{ 
+                          width: displayDims?.w || 0, 
+                          height: displayDims?.h || 0,
+                          cursor: tool === "draw" 
+                            ? `url("${penCursor}") 2 22, crosshair` 
+                            : `url("${eraserCursor}") 4 19, cell`
+                        }}
+                      >
+                        <canvas
+                          ref={imageCanvasRef}
+                          className="absolute inset-0 pointer-events-none"
+                        />
+                        <canvas
+                          ref={annotationCanvasRef}
+                          className="absolute inset-0 touch-none z-10"
+                          onPointerDown={startDrawing}
+                          onPointerMove={draw}
+                          onPointerUp={stopDrawing}
+                          onPointerOut={stopDrawing}
+                        />
+                      </div>
 
                       <button
                         onClick={reset}
@@ -427,8 +584,8 @@ export default function DrawOverImage() {
                       </button>
                     </div>
 
-                    <div className="w-full max-w-3xl flex flex-wrap gap-4 items-center justify-center py-4 border-t">
-                      <div className="flex items-center gap-3">
+                    <div className="w-full flex flex-wrap gap-4 items-center sm:justify-center py-4 border-t">
+                      <div className="flex items-center gap-3 no-scrollbar overflow-x-auto">
                         <Button
                           variant={tool === "draw" ? "default" : "outline"}
                           size="sm"
@@ -443,12 +600,17 @@ export default function DrawOverImage() {
                         >
                           <Eraser className="mr-2 h-4 w-4" /> Erase
                         </Button>
-                        <Button variant="outline" size="sm" onClick={clearCanvas}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={clearCanvas}
+                          disabled={!hasAnnotations}
+                        >
                           <RotateCcw className="mr-2 h-4 w-4" /> Clear
                         </Button>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      {/* <div className="flex items-center gap-4 flex-wrap"> */}
                         <div className="flex items-center gap-2">
                           <Palette className="h-5 w-5 text-muted-foreground" />
                           <Input
@@ -473,7 +635,7 @@ export default function DrawOverImage() {
                           />
                         </div>
                       </div>
-                    </div>
+                    {/* </div> */}
 
                     <div className="flex flex-col sm:flex-row gap-4 w-full ">
                       <Button
@@ -674,7 +836,7 @@ export default function DrawOverImage() {
             <Button variant="outline" className="rounded" onClick={() => setIsFormatDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={executeDownload} className="flex-2 font-bold rounded">
+            <Button onClick={executeDownload} className="flex-2 font-semibold upppercase rounded">
               Download {selectedFormat.toUpperCase()}
             </Button>
           </DialogFooter>
