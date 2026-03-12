@@ -93,7 +93,7 @@ export const tools = [
         url: "/watermark-image",
       },
       {
-        title: "Draw over Image",
+        title: "Draw Over Image",
         description: "Annotate, draw, or add shapes over any image",
         icon: "/icons/image-tools/draw.svg",
         url: "/draw-over-image",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { FaEyeDropper } from "react-icons/fa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,6 +17,7 @@ import {
   FilePlus,
   Zap,
   X,
+   Palette,
   FileImage,
   Maximize,
 } from "lucide-react";
@@ -288,7 +288,7 @@ export default function RemoveBackground() {
                           <div className="flex flex-wrap gap-2">
                             <div className="gap-2 rounded flex items-center justify-center">
                               <label htmlFor="color-input">
-                                <FaEyeDropper className="size-4 text-foreground" />
+                                <Palette className="size-4 text-foreground" />
                               </label>
 
                               <div className="relative h-6 w-12">
