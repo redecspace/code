@@ -23,6 +23,7 @@ import {
   Palette,
   Undo2,
   Redo2,
+  Save,
 } from "lucide-react";
 import { cn, formatSize } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -640,23 +641,23 @@ export default function DrawOverImage() {
                     <div className="flex flex-col sm:flex-row gap-4 w-full ">
                       <Button
                         variant="outline"
-                        className="flex-1 h-10 uppercase tracking-wider"
+                        className="flex-1 h-10 uppercase font-semibold  tracking-wider"
                         onClick={reset}
                       >
                         <FilePlus className="mr-2 h-4 w-4" /> New Image
                       </Button>
                       <Button
-                        className="flex-1 h-10 border-0 uppercase tracking-wider"
+                        className="flex-1 h-10 border-0 uppercase font-semibold  tracking-wider"
                         onClick={() => handleDownloadClick()}
                       >
                         <Download className="mr-2 h-4 w-4" /> Download
                       </Button>
                       <Button
                         variant="secondary"
-                        className="h-10 border-0 uppercase tracking-wider"
+                        className="h-10 border-0 uppercase font-semibold tracking-wider"
                         onClick={handleSaveToHistory}
                       >
-                        Save
+                       <Save className="mr-2 h-4 w-4" /> Save
                       </Button>
                     </div>
                   </div>

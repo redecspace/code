@@ -388,7 +388,7 @@ export default function ImageConverter() {
                 { title: "Compatibility", desc: "JPG is the most widely supported format for older software and systems.", color: "text-green-500" },
               ].map((tip, i) => (
                 <div key={i} className="space-y-1.5 p-3 rounded bg-muted/50 border border-transparent hover:border-primary/20 transition-colors">
-                    <p className={cn("text-xs font-black uppercase tracking-widest", tip.color)}>{tip.title}</p>
+                    <p className={cn("text-xs font-bold uppercase tracking-widest", tip.color)}>{tip.title}</p>
                     <p className="text-xs text-muted-foreground leading-relaxed">{tip.desc}</p>
                 </div>
               ))}

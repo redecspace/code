@@ -483,7 +483,7 @@ export default function CompressImage() {
                 >
                   <p
                     className={cn(
-                      "text-xs font-black uppercase tracking-widest",
+                      "text-xs font-bold uppercase tracking-widest",
                       tip.color,
                     )}
                   >
