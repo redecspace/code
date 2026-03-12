@@ -17,10 +17,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 import TextLogo from "./text-logo";
 import { cn } from "@/lib/utils";
+import { WEB_DOMAIN } from "@/data/constants";
 
 export function AppSidebar() {
   const { state, setOpenMobile, isMobile } = useSidebar();
@@ -122,7 +124,7 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
 
-        <SidebarGroup className="-mt-5 pb-10">
+        <SidebarGroup className="-mt-5">
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -156,7 +158,24 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+      <SidebarFooter className="border-t px-4">
+        {!collapsed ? (
+          <div className="flex flex-col gap-1">
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+              &copy; {new Date().getFullYear()} {WEB_DOMAIN}
+            </p>
+            <p className="text-[9px] text-muted-foreground/60 leading-tight">
+              All rights reserved.
+            </p>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <p className="text-[10px] text-muted-foreground font-bold">&copy;</p>
+          </div>
+        )}
+      </SidebarFooter>
       </SidebarContent>
+
     </Sidebar>
   );
 }
