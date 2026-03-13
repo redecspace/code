@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Download,
   History,
@@ -13,11 +11,17 @@ import {
   Star,
   ListChecks,
   Camera,
-  Code2,
+  Braces,
+  Eye,
   RefreshCw,
   ImageIcon,
-  Settings2,
-  Braces,
+  Maximize,
+  Save,
+  RotateCcw,
+  LayoutGrid,
+  Table as TableIcon,
+  GitGraph,
+  Network,
 } from "lucide-react";
 import { cn, formatSize } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -30,51 +34,149 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toPng, toJpeg } from "html-to-image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toPng, toJpeg, toCanvas } from "html-to-image";
+import { JSON_TO_IMAGE_CONTENT } from "@/data/tools/image-tools/json-to-image";
 import Prism from "prismjs";
+
+// Load JSON language component for the editor
 import "prismjs/components/prism-json";
 
-import { JSON_TO_IMAGE_CONTENT } from "@/data/tools/image-tools/json-to-image";
+const CodeEditor = ({ value, onChange, language, placeholder }: { value: string, onChange: (val: string) => void, language: string, placeholder: string }) => {
+  const [mounted, setMounted] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleScroll = () => {
+    if (textareaRef.current && preRef.current) {
+      preRef.current.scrollTop = textareaRef.current.scrollTop;
+      preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  };
+
+  useEffect(() => {
+    if (mounted) {
+      handleScroll();
+    }
+  }, [value, mounted]);
+
+  const highlighted = mounted 
+    ? Prism.highlight(
+        value + (value.endsWith("\n") ? " " : ""),
+        Prism.languages[language] || Prism.languages.json,
+        language
+      )
+    : "";
+
+  const sharedStyles = {
+    fontFamily: 'JetBrains Mono, ui-mono, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: '13px',
+    lineHeight: '1.6',
+    padding: '16px',
+    margin: '0px',
+    paddingBottom: '50px',
+    tabSize: 2,
+  };
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-background">
+      {mounted && (
+        <pre
+          ref={preRef}
+          className={cn(
+            `language-${language} absolute inset-0 m-0 pointer-events-none bg-transparent overflow-hidden whitespace-pre-wrap break-all border-0`
+          )}
+          style={sharedStyles}
+          aria-hidden="true"
+          suppressHydrationWarning
+        >
+          <code 
+            className={`language-${language} bg-transparent!`}
+            style={{ 
+              fontFamily: 'inherit',
+              fontSize: 'inherit',
+              lineHeight: 'inherit',
+              padding: 0
+            }}
+            dangerouslySetInnerHTML={{ __html: highlighted }}
+            suppressHydrationWarning
+          />
+        </pre>
+      )}
+      <textarea
+        ref={textareaRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onScroll={handleScroll}
+        className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-foreground resize-none border-0 focus:ring-0 outline-none overflow-auto whitespace-pre-wrap break-all"
+        style={sharedStyles}
+        placeholder={placeholder}
+        spellCheck="false"
+      />
+    </div>
+  );
+};
+
+type PreviewMode = "tree" | "table" | "map";
 
 export default function JSONToImage() {
   const { title, description, about, features, steps } = JSON_TO_IMAGE_CONTENT;
 
-  const [jsonInput, setJsonInput] = useState<string>(
-    `{\n  "project": "Redec Space",\n  "version": "1.0.0",\n  "features": [\n    "Privacy",\n    "Speed",\n    "Local Processing"\n  ],\n  "stats": {\n    "logic": "100% Client",\n    "server": "None"\n  }\n}`
-  );
-  const [theme, setTheme] = useState<string>("tomorrow");
-  const [fontSize, setFontSize] = useState<number>(14);
+  const DEFAULT_JSON = `{
+  "id": "redec-001",
+  "project": {
+    "name": "Project Dashboard",
+    "version": "2.4.0",
+    "status": "Production"
+  },
+  "stats": [
+    { "label": "Revenue", "value": "$12,400", "trend": "+12%" },
+    { "label": "Users", "value": "1,240", "trend": "+5%" },
+    { "label": "Latency", "value": "45ms", "trend": "-2ms" }
+  ],
+  "author": "Besaoct",
+  "tags": ["Design", "Dev", "Image"]
+}`;
 
+  const [jsonInput, setJsonInput] = useState<string>(DEFAULT_JSON);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("tree");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg">("png");
+  const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg" | "webp" | "svg">("png");
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
-
-  const previewRef = useRef<HTMLDivElement>(null);
+  const [captureElement, setCaptureElement] = useState<HTMLElement | null>(null);
 
   const history = useLiveQuery(() =>
     db.history.where("toolUrl").equals("/json-to-image").reverse().toArray()
   );
 
-  useEffect(() => {
-    Prism.highlightAll();
-  }, [jsonInput]);
+  const handleReset = () => {
+    setJsonInput(DEFAULT_JSON);
+    toast.success("Editor reset to default");
+  };
 
-  const handleFormat = () => {
+  const handlePrettify = () => {
     try {
       const obj = JSON.parse(jsonInput);
       setJsonInput(JSON.stringify(obj, null, 2));
-      toast.success("JSON formatted successfully!");
+      toast.success("JSON prettified");
     } catch (err) {
-      toast.error("Invalid JSON format.");
+      toast.error("Invalid JSON format");
     }
   };
 
+  const toWebpLocal = async (el: HTMLElement, options?: any) => {
+    const canvas = await toCanvas(el, options);
+    return canvas.toDataURL("image/webp", options?.quality || 0.95);
+  };
+
   const handleCapture = async () => {
-    if (!previewRef.current) return;
+    if (!captureElement) return;
     
-    // Validate JSON before capture
     try {
       JSON.parse(jsonInput);
     } catch (e) {
@@ -90,17 +192,28 @@ export default function JSONToImage() {
         backgroundColor: "transparent",
       };
 
-      let dataUrl = "";
-      if (selectedFormat === "png") dataUrl = await toPng(previewRef.current, options);
-      else dataUrl = await toJpeg(previewRef.current, { ...options, quality: 0.95 });
+      if (selectedFormat === "svg") {
+        const canvas = await toCanvas(captureElement, options);
+        const dataUrl = canvas.toDataURL("image/png");
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}">
+  <image xlink:href="${dataUrl}" width="${canvas.width}" height="${canvas.height}" />
+</svg>`;
+        const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+        setCapturedBlob(blob);
+      } else {
+        let dataUrl = "";
+        if (selectedFormat === "png") dataUrl = await toPng(captureElement, options);
+        else if (selectedFormat === "jpeg") dataUrl = await toJpeg(captureElement, { ...options, quality: 0.95 });
+        else dataUrl = await toWebpLocal(captureElement, { ...options, quality: 0.95 });
 
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      setCapturedBlob(blob);
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        setCapturedBlob(blob);
+      }
       setIsFormatDialogOpen(true);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to capture JSON image.");
+      toast.error("Failed to capture image.");
     } finally {
       setIsProcessing(false);
     }
@@ -114,27 +227,261 @@ export default function JSONToImage() {
       const url = URL.createObjectURL(capturedBlob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `json_capture_${Date.now()}.${selectedFormat === "jpeg" ? "jpg" : "png"}`;
+      link.download = `json_${previewMode}_${Date.now()}.${selectedFormat === "jpeg" ? "jpg" : selectedFormat}`;
       link.click();
       URL.revokeObjectURL(url);
 
-      // Save to history
-      await db.history.add({
-        toolUrl: "/json-to-image",
-        toolName: "JSON to Image",
-        input: { type: "JSON Data" },
-        result: { size: capturedBlob.size },
-        file: { blob: capturedBlob, name: `json_capture_${Date.now()}.${selectedFormat}` },
-        timestamp: Date.now(),
-      });
-
-      toast.success("JSON image saved!");
+      toast.success("Image downloaded!");
     } catch (err) {
       toast.error("Download failed");
     } finally {
       setCapturedBlob(null);
     }
   };
+
+  const handleSaveToHistory = async () => {
+    if (!captureElement) return;
+    
+    try {
+      JSON.parse(jsonInput);
+    } catch (e) {
+      toast.error("Please provide valid JSON before saving.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const dataUrl = await toPng(captureElement, { backgroundColor: "transparent" });
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+
+      await db.history.add({
+        toolUrl: "/json-to-image",
+        toolName: "JSON to Image",
+        input: {
+          type: `JSON ${previewMode.toUpperCase()}`,
+          json: jsonInput,
+        },
+        result: { size: blob.size },
+        file: { blob: blob, name: `json_${previewMode}_${Date.now()}.png` },
+        timestamp: Date.now(),
+      });
+
+      toast.success("Saved to history!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save to history.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const putBackFromHistory = (item: any) => {
+    if (item.input?.json !== undefined) {
+      setJsonInput(item.input.json);
+      toast.success("Restored JSON from history");
+    }
+  };
+
+  const handleHistoryDownload = async (item: any) => {
+    setCapturedBlob(item.file.blob);
+    setIsFormatDialogOpen(true);
+  };
+
+  // Improved Rendering Helpers
+  const generateTreeHtml = (data: any): string => {
+    if (data === null) return '<span class="v-null">null</span>';
+    if (typeof data === 'string') return `<span class="v-string">"${data}"</span>`;
+    if (typeof data === 'number') return `<span class="v-number">${data}</span>`;
+    if (typeof data === 'boolean') return `<span class="v-boolean">${data}</span>`;
+    
+    if (Array.isArray(data)) {
+      if (data.length === 0) return '<span class="v-dim">[]</span>';
+      return `
+        <div class="collapsible">
+          <div class="line"></div>
+          ${data.map(item => `
+            <div class="tree-item">
+              <span class="bullet"></span>
+              ${generateTreeHtml(item)}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    
+    if (typeof data === 'object') {
+      const keys = Object.keys(data);
+      if (keys.length === 0) return '<span class="v-dim">{}</span>';
+      return `
+        <div class="collapsible">
+          <div class="line"></div>
+          ${keys.map(key => `
+            <div class="tree-item">
+              <span class="key">${key}:</span>
+              ${generateTreeHtml(data[key])}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+    return String(data);
+  };
+
+  const generateTableHtml = (data: any): string => {
+    const flatten = (obj: any, prefix = ''): Record<string, any> => {
+      const result: Record<string, any> = {};
+      for (const key in obj) {
+        const name = prefix ? `${prefix}.${key}` : key;
+        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+          Object.assign(result, flatten(obj[key], name));
+        } else {
+          result[name] = obj[key];
+        }
+      }
+      return result;
+    };
+
+    let rows: Record<string, any>[] = [];
+    if (Array.isArray(data)) {
+      rows = data.map(item => typeof item === 'object' && item !== null ? flatten(item) : { value: item });
+    } else if (typeof data === 'object' && data !== null) {
+      rows = [flatten(data)];
+    } else {
+      rows = [{ value: data }];
+    }
+
+    const headers = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
+
+    return `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>${headers.map(h => `<th>${h.replace(/\./g, ' <span class="dot-sep">/</span> ')}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr>${headers.map(h => {
+                const val = row[h];
+                if (val === null || val === undefined) return '<td><span class="v-dim">-</span></td>';
+                if (Array.isArray(val)) return `<td><span class="v-array">Array(${val.length})</span></td>`;
+                const isPositive = String(val).startsWith('+') || String(val).toLowerCase() === 'up';
+                const isNegative = String(val).startsWith('-') || String(val).toLowerCase() === 'down';
+                const statusClass = isPositive ? 'v-success' : isNegative ? 'v-error' : 'v-text';
+                return `<td><span class="${statusClass}">${val}</span></td>`;
+              }).join('')}</tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const generateMapHtml = (data: any, label = "Root"): string => {
+    if (data === null || typeof data !== 'object') {
+      return `
+        <div class="map-node map-leaf">
+          <div class="map-label">${label}</div>
+          <div class="map-value">${data}</div>
+        </div>
+      `;
+    }
+
+    const isArr = Array.isArray(data);
+    const children = isArr 
+      ? data.map((item, i) => generateMapHtml(item, `[${i}]`))
+      : Object.entries(data).map(([k, v]) => generateMapHtml(v, k));
+
+    return `
+      <div class="map-branch">
+        <div class="map-node map-parent">${label}</div>
+        <div class="map-children">
+          ${children.join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  let parsedData = {};
+  try {
+    parsedData = JSON.parse(jsonInput);
+  } catch (e) {}
+
+  const iframeSrcDoc = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { 
+            margin: 0; 
+            padding: 80px; 
+            background: transparent; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh;
+            width: fit-content;
+            min-width: 100vw;
+            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+          }
+          .canvas-outer {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-radius: 32px;
+            box-shadow: 0 40px 80px -15px rgba(0, 0, 0, 0.7);
+            padding: 48px;
+            display: flex;
+            flex-direction: column;
+            width: fit-content;
+            height: fit-content;
+            min-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+          }
+          /* Tree Styles */
+          .tree-item { position: relative; padding-left: 28px; margin: 10px 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+          .collapsible { position: relative; margin-left: 16px; }
+          .line { position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); border-radius: 1px; }
+          .bullet { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; position: absolute; left: -19px; }
+          .key { color: #818cf8; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+          .v-string { color: #4ade80; font-weight: 500; }
+          .v-number { color: #fb923c; font-weight: 600; }
+          .v-boolean { color: #f472b6; font-weight: 600; }
+          .v-null { color: #94a3b8; font-style: italic; }
+          .v-dim { color: #475569; }
+          
+          /* Table Styles */
+          .table-container { border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); width: fit-content; min-width: 100%; }
+          table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; table-layout: auto; }
+          th { background: rgba(255,255,255,0.05); color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px; padding: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); white-space: nowrap; }
+          td { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
+          .dot-sep { color: #475569; padding: 0 4px; font-weight: normal; }
+          .v-array { background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+          .v-success { color: #10b981; font-weight: 700; }
+          .v-error { color: #ef4444; font-weight: 700; }
+          tr:nth-child(even) { background: rgba(255,255,255,0.01); }
+          
+          /* Map Styles */
+          .map-branch { display: flex; align-items: center; gap: 40px; position: relative; }
+          .map-children { display: flex; flex-direction: column; gap: 16px; position: relative; padding-left: 20px; border-left: 2px solid rgba(99, 102, 241, 0.2); }
+          .map-node { padding: 12px 20px; border-radius: 12px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); min-width: 140px; white-space: nowrap; }
+          .map-parent { background: #312e81; color: #c7d2fe; border-color: #4338ca; font-weight: 700; font-size: 14px; z-index: 2; position: relative; }
+          .map-leaf { display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #6366f1; }
+          .map-label { color: #94a3b8; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+          .map-value { color: #f1f5f9; font-size: 13px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+          .map-branch::before { content: ''; position: absolute; left: -40px; width: 40px; height: 2px; background: rgba(99, 102, 241, 0.2); z-index: 1; }
+          .map-children > .map-branch::before { left: -20px; width: 20px; }
+        </style>
+      </head>
+      <body>
+        <div id="capture-target" class="canvas-outer">
+          ${previewMode === 'tree' ? generateTreeHtml(parsedData) : 
+            previewMode === 'table' ? generateTableHtml(parsedData) : 
+            generateMapHtml(parsedData, "Root")}
+        </div>
+      </body>
+    </html>
+  `;
 
   return (
     <div className="max-w-5xl mr-auto animate-fade-in pb-10">
@@ -148,94 +495,106 @@ export default function JSONToImage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="flex flex-col h-125">
-              <CardHeader className="py-3 border-b flex flex-row items-center justify-between">
+          <div className="grid grid-cols-1 gap-6">
+            <Card className="flex flex-col h-125 overflow-hidden border-primary/10">
+              <CardHeader className="py-3 border-b flex flex-row items-center justify-between bg-muted/20">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <Braces className="h-4 w-4 text-primary" /> JSON Editor
                 </CardTitle>
-                <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={handleFormat}>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest px-3" onClick={handlePrettify}>
                   Prettify
                 </Button>
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-hidden">
-                <Textarea
+                <CodeEditor
                   value={jsonInput}
-                  onChange={(e) => setJsonInput(e.target.value)}
-                  className="h-full w-full rounded-none border-0 focus-visible:ring-0 resize-none font-mono text-xs p-4 bg-background"
+                  onChange={setJsonInput}
+                  language="json"
                   placeholder="Paste your JSON here..."
                 />
               </CardContent>
             </Card>
 
-            <Card className="flex flex-col h-125">
-              <CardHeader className="py-3 border-b flex flex-row items-center justify-between">
+            <Card className="flex flex-col h-125 overflow-hidden border-primary/10">
+              <CardHeader className="py-3 border-b flex flex-row items-center justify-between bg-muted/5">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Camera className="h-4 w-4 text-primary" /> Visual Preview
+                  <Eye className="h-4 w-4 text-primary" /> Visual Perspective
                 </CardTitle>
-                <div className="w-32">
-                  <Select value={theme} onValueChange={setTheme}>
-                    <SelectTrigger className="h-7 text-[10px]">
-                      <SelectValue placeholder="Theme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tomorrow">Tomorrow (Dark)</SelectItem>
-                      <SelectItem value="okaidia">Okaidia (Dark)</SelectItem>
-                      <SelectItem value="solarizedlight">Solarized (Light)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex bg-muted/50 p-1 rounded-lg border">
+                  {[
+                    { id: "tree", icon: LayoutGrid, label: "Tree" },
+                    { id: "table", icon: TableIcon, label: "Table" },
+                    { id: "map", icon: Network, label: "Map" }
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      onClick={() => setPreviewMode(mode.id as PreviewMode)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all",
+                        previewMode === mode.id ? "bg-background text-primary shadow-sm ring-1 ring-black/5" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <mode.icon className="h-3.5 w-3.5" /> {mode.label}
+                    </button>
+                  ))}
                 </div>
               </CardHeader>
-              <CardContent className="p-0 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
-                <div 
-                  ref={previewRef}
-                  className={cn(
-                    "rounded-xl shadow-xl overflow-hidden min-w-75 max-w-full",
-                    theme === "solarizedlight" ? "bg-white" : "bg-[#1e1e1e]"
-                  )}
-                >
-                  {/* JSON window header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-black/5 bg-black/5">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                    </div>
-                    <div className="text-[10px] opacity-40 font-mono font-bold tracking-widest uppercase">data.json</div>
-                  </div>
-                  <div className="p-6 overflow-hidden">
-                    <pre className={cn("language-json m-0! p-0! bg-transparent!")} style={{ fontSize: `${fontSize}px` }}>
-                      <code className="language-json bg-transparent!">
-                        {jsonInput}
-                      </code>
-                    </pre>
-                  </div>
-                </div>
+              <CardContent className="p-0 flex-1 overflow-hidden bg-muted/30 flex items-center justify-center rounded-none h-full">
+                <iframe
+                  title="Preview"
+                  className="w-full h-full border-0 bg-transparent"
+                  srcDoc={iframeSrcDoc}
+                  onLoad={(e) => {
+                    const iframe = e.currentTarget;
+                    const doc = iframe.contentDocument;
+                    if (doc) {
+                      const target = doc.getElementById("capture-target");
+                      setCaptureElement(target);
+                    }
+                  }}
+                />
               </CardContent>
             </Card>
           </div>
 
           <div className="flex gap-4">
             <Button 
-              className="flex-1 h-12 uppercase tracking-widest font-bold" 
+              className="flex-1 h-10 uppercase tracking-widest font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99]" 
               onClick={handleCapture}
               disabled={isProcessing}
             >
               {isProcessing ? (
                 <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Rendering...
                 </>
               ) : (
                 <>
-                  <Camera className="mr-2 h-4 w-4" /> Capture Image
+                  <Camera className="mr-2 h-4 w-4" /> Capture {previewMode}
                 </>
               )}
+            </Button>
+            <Button
+              variant="secondary"
+              className="h-10 px-6 uppercase tracking-widest font-bold"
+              onClick={handleSaveToHistory}
+              disabled={isProcessing}
+            >
+              <Save className="mr-2 h-4 w-4" /> Save
+            </Button>
+            <Button
+              variant="outline"
+              className="h-10 px-4"
+              title="Reset Editor"
+              onClick={handleReset}
+              disabled={isProcessing}
+            >
+              <RotateCcw className="h-4 w-4" />
             </Button>
           </div>
 
           {history && history.length > 0 && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <Card className="rounded-xl overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/10">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <History className="h-5 w-5 text-primary" />
                   History
@@ -252,24 +611,24 @@ export default function JSONToImage() {
                   <Trash2 className="h-4 w-4 mr-2" /> Clear All
                 </Button>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <div className="space-y-3">
                   {history.map((item) => (
                     <div
                       key={item.id}
-                      className="flex flex-wrap gap-4 items-center justify-between p-4 bg-muted/30 rounded border group"
+                      className="flex flex-wrap gap-4 items-center justify-between p-4 bg-muted/30 rounded-xl border group transition-all hover:border-primary/30"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="h-10 min-w-10 bg-primary/10 rounded flex items-center justify-center">
+                        <div className="h-10 min-w-10 bg-primary/10 rounded-lg flex items-center justify-center">
                           <ImageIcon className="h-5 w-5 text-primary" />
                         </div>
                         <div className="grid gap-1">
-                          <p className="font-medium text-sm break-all line-clamp-1">{item.input?.type}</p>
+                          <p className="font-bold text-sm">{item.input?.type}</p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
                             </p>
-                            <span className="text-[9px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-semibold uppercase">
+                            <span className="text-[9px] bg-background text-muted-foreground px-2 py-0.5 rounded border font-semibold uppercase">
                               {formatSize(item.result?.size || 0)}
                             </span>
                           </div>
@@ -277,24 +636,27 @@ export default function JSONToImage() {
                       </div>
                       <div className="flex gap-2">
                         <Button
+                          variant="secondary"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          title="Put Back"
+                          onClick={() => putBackFromHistory(item)}
+                        >
+                          <Maximize className="h-4 w-4" />
+                        </Button>
+                        <Button
                           variant="outline"
                           size="icon"
                           className="h-8 w-8 rounded-full"
-                          onClick={() => {
-                            const url =item.file?  URL.createObjectURL(item.file.blob): "/#";
-                            const link = document.createElement("a");
-                            link.href = url;
-                            link.download = item.file?.name || "";
-                            link.click();
-                            URL.revokeObjectURL(url);
-                          }}
+                          title="Download"
+                          onClick={() => handleHistoryDownload(item)}
                         >
                           <Download className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive transition-colors"
                           onClick={async () => await db.history.delete(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -313,22 +675,22 @@ export default function JSONToImage() {
         </div>
 
         <div className="hidden xl:block space-y-6 h-fit">
-          <Card className="border-t-4 border-t-primary shadow-sm overflow-hidden">
+          <Card className="border-t-4 border-t-primary shadow-sm overflow-hidden sticky top-24">
             <div className="p-1 bg-primary/5 border-b flex items-center justify-center py-4">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Braces className="h-6 w-6" />
+                <Network className="h-6 w-6" />
               </div>
             </div>
             <CardHeader>
-              <CardTitle className="text-lg text-center">Data Intel</CardTitle>
+              <CardTitle className="text-lg text-center">Visual Guide</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { title: "Validation", desc: "Our tool ensures your JSON is valid before capturing the image.", color: "text-amber-500" },
-                { title: "Prettify", desc: "Use the prettify button to automatically fix indentation and spacing.", color: "text-green-500" },
-                { title: "Local Safety", desc: "Your data never leaves your browser. Safe for sensitive API responses.", color: "text-blue-500" },
+                { title: "Smart Flattening", desc: "Table mode automatically flattens nested objects into dot-notation columns.", color: "text-blue-500" },
+                { title: "Flow Representation", desc: "Map view generates a hierarchical flowchart tracking nested relationships.", color: "text-emerald-500" },
+                { title: "Status Mapping", desc: "Keywords like 'Up', 'Down', '+', or '-' are automatically color-coded.", color: "text-amber-500" },
               ].map((tip, i) => (
-                <div key={i} className="space-y-1.5 p-3 rounded bg-muted/50 border border-transparent hover:border-primary/20 transition-colors">
+                <div key={i} className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/20 transition-all">
                   <p className={cn("text-xs font-bold uppercase tracking-widest", tip.color)}>{tip.title}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{tip.desc}</p>
                 </div>
@@ -346,20 +708,22 @@ export default function JSONToImage() {
               Export Format
             </DialogTitle>
             <p className="text-sm text-muted-foreground text-left">
-              Choose your preferred format for the JSON capture.
+              Choose your preferred format for the captured JSON visualization.
             </p>
           </DialogHeader>
           <div className="py-6 flex flex-col items-center gap-6">
             <div className="grid grid-cols-2 gap-3 w-full">
               {[
-                { id: "png", label: "PNG", desc: "High Quality" },
+                { id: "png", label: "PNG", desc: "Transparent" },
                 { id: "jpeg", label: "JPG", desc: "Standard" },
+                { id: "webp", label: "WebP", desc: "Optimized" },
+                { id: "svg", label: "SVG", desc: "Vector" },
               ].map((fmt) => (
                 <button
                   key={fmt.id}
-                  onClick={() => setSelectedFormat(fmt.id as "png" | "jpeg")}
+                  onClick={() => setSelectedFormat(fmt.id as "png" | "jpeg" | "webp" | "svg")}
                   className={cn(
-                    "flex flex-col items-center gap-2 p-4 rounded border-2 transition-all group",
+                    "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group text-left",
                     selectedFormat === fmt.id ? "border-primary bg-primary/5" : "border-muted hover:border-primary/30 bg-muted/30"
                   )}
                 >
@@ -367,24 +731,22 @@ export default function JSONToImage() {
                     {fmt.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{fmt.desc}</span>
-                  {selectedFormat === fmt.id && <div className="h-1 w-1 bg-primary rounded-full mt-1" />}
                 </button>
               ))}
             </div>
           </div>
           <DialogFooter className="sm:justify-between gap-3">
-            <Button variant="outline" className="rounded" onClick={() => setIsFormatDialogOpen(false)}>
+            <Button variant="outline" className="rounded-lg" onClick={() => setIsFormatDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={executeDownload} className="flex-2 font-bold rounded">
-              Download JSON Image
+            <Button onClick={executeDownload} className="flex-2 font-bold rounded-lg px-8">
+              Download {previewMode.toUpperCase()} Image
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Global CSS for Prism themes */}
-      <link rel="stylesheet" href={`https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-${theme}.min.css`} />
+      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
     </div>
   );
 }
@@ -392,14 +754,14 @@ export default function JSONToImage() {
 function ToolInfo({ about, features, steps }: { about: string[]; features: any[]; steps: any[] }) {
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="rounded-xl overflow-hidden border-primary/5 shadow-sm">
+        <CardHeader className="bg-muted/20">
           <CardTitle className="text-lg flex items-center gap-2">
             <Info className="h-5 w-5 text-primary" />
             Background
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           {about.map((p, i) => (
             <p key={i} className="text-sm text-muted-foreground leading-relaxed">
               {p}
@@ -408,14 +770,14 @@ function ToolInfo({ about, features, steps }: { about: string[]; features: any[]
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-xl overflow-hidden border-primary/5 shadow-sm">
+        <CardHeader className="bg-muted/20">
           <CardTitle className="text-lg flex items-center gap-2">
             <Star className="h-5 w-5 text-primary" />
             Expert Capabilities
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <ul className="space-y-5">
             {features.map((f, i) => (
               <li key={i} className="flex gap-4">
@@ -432,14 +794,14 @@ function ToolInfo({ about, features, steps }: { about: string[]; features: any[]
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="rounded-xl overflow-hidden border-primary/5 shadow-sm">
+        <CardHeader className="bg-muted/20">
           <CardTitle className="text-lg flex items-center gap-2">
             <ListChecks className="h-5 w-5 text-primary" />
             Operational Steps
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="space-y-6">
             {steps.map((s, i) => (
               <div key={i} className="flex gap-4">
