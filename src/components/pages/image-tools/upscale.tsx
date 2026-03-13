@@ -18,6 +18,7 @@ import {
   Zap,
   Image as ImageIcon,
   Save,
+  ChevronsUp,
 } from "lucide-react";
 import { cn, formatSize } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -272,7 +273,7 @@ export default function ImageUpscale() {
                           <img src={result.url} alt="Upscaled" className="max-w-full max-h-full object-contain" />
                         ) : (
                           <div className="flex flex-col items-center justify-center text-muted-foreground">
-                            <Sparkles className="h-8 w-8 mb-2 opacity-20" />
+                            <ChevronsUp className="h-8 w-8 mb-2 opacity-20" />
                             <p className="text-xs">Select scale and click Upscale</p>
                           </div>
                         )}

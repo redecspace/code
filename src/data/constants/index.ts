@@ -1,3 +1,4 @@
+import { tools } from "../tools";
 
 export const APP_NAME = "Redec";
 export const APP_TITLE = `${APP_NAME} - Free & Open source Tools for Everyone`;
@@ -10,7 +11,8 @@ export const WEB_URL = `${WEB_PROTOCOL}://${WEB_DOMAIN}`;
 
 export const SUPPORT_EMAIL = `support@redec.space`;
 
-export const NEXT_PUBLIC_GOOGLE_CLIENT_ID= '622854070021-3boporbbbh3em3u4f6b4k44idbpb0i26.apps.googleusercontent.com'
+export const NEXT_PUBLIC_GOOGLE_CLIENT_ID =
+  "622854070021-3boporbbbh3em3u4f6b4k44idbpb0i26.apps.googleusercontent.com";
 
 export const BASE_URL =
   process.env.NODE_ENV === "production"
@@ -20,6 +22,8 @@ export const API_BASE_URL =
   process.env.NODE_ENV === "production"
     ? "https://redec.space/api"
     : "http://localhost:8000";
+
+export const GTM_ID = "GTM-KQHQ5945";
 
 export const placeholderImage = "/placeholder.svg";
 
@@ -36,21 +40,22 @@ export const rgbDataURL = (r: number, g: number, b: number) => {
   }/yH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==`;
 };
 
+const toolRoutes = tools.flatMap((category) =>
+  category.items.map((item) => 
+   `${item.url}`,
+  ) ,
+);
+
 export const SEO = {
- 
   routes: [
     "/",
-    "/unit-converter",
-    "/password-generator",
-    "/qr-generator",
-    "/word-counter",
+    ...toolRoutes
   ],
 
   metadata: {
-   
-   icons:{
-    icon: "/logo.png"
-   },
+    icons: {
+      icon: "/logo.png",
+    },
 
     title: APP_TITLE,
     description: `${APP_NAME} provides a growing collection of free, fast, and secure online and Open source tools. Convert, generate, create, calculate and analyze effortlessly.`,

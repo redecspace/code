@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import AppProviders from "./providers";
-import { SEO, WEB_URL } from "@/data/constants";
+import { GTM_ID, SEO, WEB_URL } from "@/data/constants";
+import { GoogleTagManager } from '@next/third-parties/google'
 
 const fontDisplay = Montserrat({
   variable: "--font-display",
@@ -37,6 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <GoogleTagManager gtmId={GTM_ID} />
       <body
         className={`${fontSans.variable} ${fontDisplay.variable} tabular-nums font-sans`}
         cz-shortcut-listen="true"

@@ -18,7 +18,7 @@ export default function AppProviders({
       <ThemeProvider defaultTheme="dark" storageKey="redec-theme">
         <TooltipProvider>
           {children}
-          <Toaster />
+          <Toaster className="font-sans!" />
         </TooltipProvider>
       </ThemeProvider>
     </SerwistProvider>
