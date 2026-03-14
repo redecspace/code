@@ -531,7 +531,7 @@ export default function MarkdownToImage() {
                 { id: "png", label: "PNG", desc: "Transparent" },
                 { id: "jpeg", label: "JPG", desc: "Standard" },
                 { id: "webp", label: "WebP", desc: "Optimized" },
-                { id: "svg", label: "SVG", desc: "Vector" },
+                // { id: "svg", label: "SVG", desc: "Vector" },
               ].map((fmt) => (
                 <button
                   key={fmt.id}
@@ -545,6 +545,9 @@ export default function MarkdownToImage() {
                     {fmt.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{fmt.desc}</span>
+                          {selectedFormat === fmt.id && (
+                    <div className="h-1 w-1 bg-primary rounded-full mt-1" />
+                  )}
                 </button>
               ))}
             </div>

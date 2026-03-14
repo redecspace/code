@@ -31,7 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toPng, toJpeg, toCanvas, toSvg } from "html-to-image";
+import { toPng, toJpeg, toCanvas } from "html-to-image";
 import { HTML_TO_IMAGE_CONTENT } from "@/data/tools/image-tools/html-to-image";
 import Prism from "prismjs";
 
@@ -154,39 +154,47 @@ export default function HTMLToImage() {
     return iframe.contentDocument?.getElementById("capture-target") || null;
   };
 
+
   const handleCapture = async () => {
-    setIsProcessing(true);
-    
-    // Small delay to ensure iframe content is fully settled
-    await new Promise(resolve => setTimeout(resolve, 150));
+
 
     const captureElement = getCaptureElement();
     if (!captureElement) {
       toast.error("Preview not ready");
-      setIsProcessing(false);
       return;
     }
+    setIsProcessing(true);
 
     try {
+
+
       const options = {
         cacheBust: true,
         backgroundColor: "transparent",
       };
 
-      let dataUrl = "";
-      if (selectedFormat === "svg") {
-        dataUrl = await toSvg(captureElement, options);
-      } else if (selectedFormat === "png") {
-        dataUrl = await toPng(captureElement, options);
-      } else if (selectedFormat === "jpeg") {
-        dataUrl = await toJpeg(captureElement, { ...options, quality: 0.95 });
-      } else {
-        dataUrl = await toWebpLocal(captureElement, { ...options, quality: 0.95 });
-      }
+   
 
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
-      setCapturedBlob(blob);
+
+      if (selectedFormat === "svg") {
+        // Use canvas as an intermediate step for robust SVG export
+        const canvas = await toCanvas(captureElement, options);
+        const dataUrl = canvas.toDataURL("image/png");
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}">
+  <image xlink:href="${dataUrl}" width="${canvas.width}" height="${canvas.height}" />
+</svg>`;
+        const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+        setCapturedBlob(blob);
+      } else {
+        let dataUrl = "";
+        if (selectedFormat === "png") dataUrl = await toPng(captureElement, options);
+        else if (selectedFormat === "jpeg") dataUrl = await toJpeg(captureElement, { ...options, quality: 0.95 });
+        else dataUrl = await toWebpLocal(captureElement, { ...options, quality: 0.95 });
+
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        setCapturedBlob(blob);
+      }
       setIsFormatDialogOpen(true);
     } catch (err) {
       console.error(err);
@@ -217,17 +225,12 @@ export default function HTMLToImage() {
   };
 
   const handleSaveToHistory = async () => {
-    setIsProcessing(true);
-    
-    // Small delay to ensure iframe content is fully settled
-    await new Promise(resolve => setTimeout(resolve, 150));
-
     const captureElement = getCaptureElement();
     if (!captureElement) {
       toast.error("Preview not ready");
-      setIsProcessing(false);
       return;
     }
+    setIsProcessing(true);
 
     try {
       const dataUrl = await toPng(captureElement, { backgroundColor: "transparent" });
@@ -511,12 +514,12 @@ export default function HTMLToImage() {
             </p>
           </DialogHeader>
           <div className="py-6 flex flex-col items-center gap-6">
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="grid grid-cols-3 gap-3 w-full">
               {[
                 { id: "png", label: "PNG", desc: "Transparent" },
                 { id: "jpeg", label: "JPG", desc: "Standard" },
                 { id: "webp", label: "WebP", desc: "Optimized" },
-                { id: "svg", label: "SVG", desc: "Vector" },
+                // { id: "svg", label: "SVG", desc: "Vector" },
               ].map((fmt) => (
                 <button
                   key={fmt.id}
@@ -530,6 +533,9 @@ export default function HTMLToImage() {
                     {fmt.label}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">{fmt.desc}</span>
+                          {selectedFormat === fmt.id && (
+                    <div className="h-1 w-1 bg-primary rounded-full mt-1" />
+                  )}
                 </button>
               ))}
             </div>

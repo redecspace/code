@@ -118,29 +118,29 @@ export const tools = [
         url: "/html-to-image",
       },
       {
-        title: "JSON to Image",
-        description: "Convert JSON data into clean, readable images",
-        icon: "/icons/image-tools/json-to-image.svg",
-        url: "/json-to-image",
-      },
-      {
         title: "Markdown to Image",
         description: "Transform Markdown text into stylish images",
         icon: "/icons/image-tools/markdown-to-image.svg",
         url: "/markdown-to-image",
       },
-      {
-        title: "LaTeX to Image",
-        description: "Convert complex LaTeX formulas into clear images",
-        icon: "/icons/image-tools/latex-to-image.svg",
-        url: "/latex-to-image",
-      },
-      {
-        title: "Code Screenshot",
-        description: "Create beautiful snapshots of code or text snippets",
-        icon: "/icons/image-tools/screenshot.svg",
-        url: "/code-screenshot",
-      },
+      // {
+      //   title: "JSON to Image",
+      //   description: "Convert JSON data into clean, readable images",
+      //   icon: "/icons/image-tools/json-to-image.svg",
+      //   url: "/json-to-image",
+      // },
+      // {
+      //   title: "LaTeX to Image",
+      //   description: "Convert complex LaTeX formulas into clear images",
+      //   icon: "/icons/image-tools/latex-to-image.svg",
+      //   url: "/latex-to-image",
+      // },
+      // {
+      //   title: "Code Screenshot",
+      //   description: "Create beautiful snapshots of code or text snippets",
+      //   icon: "/icons/image-tools/screenshot.svg",
+      //   url: "/code-screenshot",
+      // },
 
     ],
   },
