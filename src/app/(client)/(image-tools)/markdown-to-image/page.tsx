@@ -1,4 +1,4 @@
-import MarkdownToImage from "@/components/pages/image-tools/markdown-to-image";
+import MarkdownToImage from "@/components/pages/image-tools/markdown-to-image"
 import { Metadata } from "next";
 import { Suspense } from "react";
 

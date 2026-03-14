@@ -31,7 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toPng, toJpeg, toCanvas } from "html-to-image";
+import { toPng, toJpeg, toCanvas, toSvg } from "html-to-image";
 import { HTML_TO_IMAGE_CONTENT } from "@/data/tools/image-tools/html-to-image";
 import Prism from "prismjs";
 
@@ -131,7 +131,7 @@ export default function HTMLToImage() {
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg" | "webp" | "svg">("png");
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
-  const [captureElement, setCaptureElement] = useState<HTMLElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const history = useLiveQuery(() =>
     db.history.where("toolUrl").equals("/html-to-image").reverse().toArray()
@@ -148,9 +148,24 @@ export default function HTMLToImage() {
     return canvas.toDataURL("image/webp", options?.quality || 0.95);
   };
 
+  const getCaptureElement = () => {
+    const iframe = iframeRef.current;
+    if (!iframe) return null;
+    return iframe.contentDocument?.getElementById("capture-target") || null;
+  };
+
   const handleCapture = async () => {
-    if (!captureElement) return;
     setIsProcessing(true);
+    
+    // Small delay to ensure iframe content is fully settled
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    const captureElement = getCaptureElement();
+    if (!captureElement) {
+      toast.error("Preview not ready");
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       const options = {
@@ -158,25 +173,20 @@ export default function HTMLToImage() {
         backgroundColor: "transparent",
       };
 
+      let dataUrl = "";
       if (selectedFormat === "svg") {
-        // Use canvas as an intermediate step for robust SVG export
-        const canvas = await toCanvas(captureElement, options);
-        const dataUrl = canvas.toDataURL("image/png");
-        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}">
-  <image xlink:href="${dataUrl}" width="${canvas.width}" height="${canvas.height}" />
-</svg>`;
-        const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
-        setCapturedBlob(blob);
+        dataUrl = await toSvg(captureElement, options);
+      } else if (selectedFormat === "png") {
+        dataUrl = await toPng(captureElement, options);
+      } else if (selectedFormat === "jpeg") {
+        dataUrl = await toJpeg(captureElement, { ...options, quality: 0.95 });
       } else {
-        let dataUrl = "";
-        if (selectedFormat === "png") dataUrl = await toPng(captureElement, options);
-        else if (selectedFormat === "jpeg") dataUrl = await toJpeg(captureElement, { ...options, quality: 0.95 });
-        else dataUrl = await toWebpLocal(captureElement, { ...options, quality: 0.95 });
-
-        const response = await fetch(dataUrl);
-        const blob = await response.blob();
-        setCapturedBlob(blob);
+        dataUrl = await toWebpLocal(captureElement, { ...options, quality: 0.95 });
       }
+
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      setCapturedBlob(blob);
       setIsFormatDialogOpen(true);
     } catch (err) {
       console.error(err);
@@ -207,8 +217,17 @@ export default function HTMLToImage() {
   };
 
   const handleSaveToHistory = async () => {
-    if (!captureElement) return;
     setIsProcessing(true);
+    
+    // Small delay to ensure iframe content is fully settled
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    const captureElement = getCaptureElement();
+    if (!captureElement) {
+      toast.error("Preview not ready");
+      setIsProcessing(false);
+      return;
+    }
 
     try {
       const dataUrl = await toPng(captureElement, { backgroundColor: "transparent" });
@@ -328,17 +347,10 @@ export default function HTMLToImage() {
               </CardHeader>
               <CardContent className="p-0 flex-1 overflow-hidden bg-muted/30 flex items-center justify-center rounded-none h-full">
                 <iframe
+                  ref={iframeRef}
                   title="Preview"
                   className="w-full h-full border-0 bg-transparent"
                   srcDoc={iframeSrcDoc}
-                  onLoad={(e) => {
-                    const iframe = e.currentTarget;
-                    const doc = iframe.contentDocument;
-                    if (doc) {
-                      const target = doc.getElementById("capture-target");
-                      setCaptureElement(target);
-                    }
-                  }}
                 />
               </CardContent>
             </Card>

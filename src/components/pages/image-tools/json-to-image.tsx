@@ -20,8 +20,12 @@ import {
   RotateCcw,
   LayoutGrid,
   Table as TableIcon,
-  GitGraph,
   Network,
+  Palette,
+  Type,
+  Maximize2,
+  CircleDot,
+  Box,
 } from "lucide-react";
 import { cn, formatSize } from "@/lib/utils";
 import { db } from "@/lib/db";
@@ -34,7 +38,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toPng, toJpeg, toCanvas } from "html-to-image";
 import { JSON_TO_IMAGE_CONTENT } from "@/data/tools/image-tools/json-to-image";
 import Prism from "prismjs";
@@ -123,6 +129,15 @@ const CodeEditor = ({ value, onChange, language, placeholder }: { value: string,
 
 type PreviewMode = "tree" | "table" | "map";
 
+interface CustomizationSettings {
+  borderRadius: number;
+  padding: number;
+  bgColor: string;
+  accentColor: string;
+  fontSize: number;
+  itemRadius: number;
+}
+
 export default function JSONToImage() {
   const { title, description, about, features, steps } = JSON_TO_IMAGE_CONTENT;
 
@@ -144,6 +159,15 @@ export default function JSONToImage() {
 
   const [jsonInput, setJsonInput] = useState<string>(DEFAULT_JSON);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("tree");
+  const [settings, setSettings] = useState<CustomizationSettings>({
+    borderRadius: 24,
+    padding: 48,
+    bgColor: "#0f172a",
+    accentColor: "#6366f1",
+    fontSize: 14,
+    itemRadius: 8,
+  });
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<"png" | "jpeg" | "webp" | "svg">("png");
@@ -156,7 +180,15 @@ export default function JSONToImage() {
 
   const handleReset = () => {
     setJsonInput(DEFAULT_JSON);
-    toast.success("Editor reset to default");
+    setSettings({
+      borderRadius: 24,
+      padding: 48,
+      bgColor: "#0f172a",
+      accentColor: "#6366f1",
+      fontSize: 14,
+      itemRadius: 8,
+    });
+    toast.success("Editor and settings reset");
   };
 
   const handlePrettify = () => {
@@ -289,7 +321,7 @@ export default function JSONToImage() {
     setIsFormatDialogOpen(true);
   };
 
-  // Improved Rendering Helpers
+  // Rendering Helpers
   const generateTreeHtml = (data: any): string => {
     if (data === null) return '<span class="v-null">null</span>';
     if (typeof data === 'string') return `<span class="v-string">"${data}"</span>`;
@@ -303,7 +335,7 @@ export default function JSONToImage() {
           <div class="line"></div>
           ${data.map(item => `
             <div class="tree-item">
-              <span class="bullet"></span>
+              <span class="bullet" style="background: ${settings.accentColor}"></span>
               ${generateTreeHtml(item)}
             </div>
           `).join('')}
@@ -316,10 +348,10 @@ export default function JSONToImage() {
       if (keys.length === 0) return '<span class="v-dim">{}</span>';
       return `
         <div class="collapsible">
-          <div class="line"></div>
+          <div class="line" style="border-radius: ${settings.itemRadius}px"></div>
           ${keys.map(key => `
             <div class="tree-item">
-              <span class="key">${key}:</span>
+              <span class="key" style="color: ${settings.accentColor}">${key}:</span>
               ${generateTreeHtml(data[key])}
             </div>
           `).join('')}
@@ -329,61 +361,105 @@ export default function JSONToImage() {
     return String(data);
   };
 
-  const generateTableHtml = (data: any): string => {
-    const flatten = (obj: any, prefix = ''): Record<string, any> => {
-      const result: Record<string, any> = {};
-      for (const key in obj) {
-        const name = prefix ? `${prefix}.${key}` : key;
-        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-          Object.assign(result, flatten(obj[key], name));
-        } else {
-          result[name] = obj[key];
-        }
-      }
-      return result;
-    };
-
-    let rows: Record<string, any>[] = [];
-    if (Array.isArray(data)) {
-      rows = data.map(item => typeof item === 'object' && item !== null ? flatten(item) : { value: item });
-    } else if (typeof data === 'object' && data !== null) {
-      rows = [flatten(data)];
-    } else {
-      rows = [{ value: data }];
+  // Improved Recursive Table Cell Renderer
+  const renderValue = (val: any): string => {
+    if (val === null || val === undefined) return '<span class="v-dim">null</span>';
+    if (typeof val === 'boolean') return `<span class="v-boolean">${val}</span>`;
+    if (typeof val === 'number') return `<span class="v-number">${val}</span>`;
+    
+    if (Array.isArray(val)) {
+      if (val.length === 0) return '<span class="v-dim">[]</span>';
+      return `
+        <div class="nested-list">
+          ${val.map(item => `<div class="nested-list-item">${renderValue(item)}</div>`).join('')}
+        </div>
+      `;
+    }
+    
+    if (typeof val === 'object') {
+      const keys = Object.keys(val);
+      if (keys.length === 0) return '<span class="v-dim">{}</span>';
+      return `
+        <table class="nested-table">
+          ${keys.map(k => `
+            <tr>
+              <td class="nested-key">${k}</td>
+              <td class="nested-val">${renderValue(val[k])}</td>
+            </tr>
+          `).join('')}
+        </table>
+      `;
     }
 
-    const headers = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
+    const isPositive = String(val).startsWith('+') || String(val).toLowerCase() === 'up' || String(val).toLowerCase() === 'active';
+    const isNegative = String(val).startsWith('-') || String(val).toLowerCase() === 'down' || String(val).toLowerCase() === 'error';
+    const statusClass = isPositive ? 'v-success' : isNegative ? 'v-error' : 'v-text';
+    return `<span class="${statusClass}">${val}</span>`;
+  };
 
-    return `
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>${headers.map(h => `<th>${h.replace(/\./g, ' <span class="dot-sep">/</span> ')}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${rows.map(row => `
-              <tr>${headers.map(h => {
-                const val = row[h];
-                if (val === null || val === undefined) return '<td><span class="v-dim">-</span></td>';
-                if (Array.isArray(val)) return `<td><span class="v-array">Array(${val.length})</span></td>`;
-                const isPositive = String(val).startsWith('+') || String(val).toLowerCase() === 'up';
-                const isNegative = String(val).startsWith('-') || String(val).toLowerCase() === 'down';
-                const statusClass = isPositive ? 'v-success' : isNegative ? 'v-error' : 'v-text';
-                return `<td><span class="${statusClass}">${val}</span></td>`;
-              }).join('')}</tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
+  const generateTableHtml = (data: any): string => {
+    // If it's a root array, treat each item as a row
+    if (Array.isArray(data)) {
+      if (data.length === 0) return '<div class="v-dim">Empty Array</div>';
+      
+      const allKeys = new Set<string>();
+      data.forEach(item => {
+        if (typeof item === 'object' && item !== null) {
+          Object.keys(item).forEach(k => allKeys.add(k));
+        } else {
+          allKeys.add('value');
+        }
+      });
+      const headers = Array.from(allKeys);
+
+      return `
+        <div class="table-container" style="border-radius: ${settings.itemRadius}px">
+          <table>
+            <thead>
+              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `
+                <tr>${headers.map(h => {
+                  const val = typeof row === 'object' && row !== null ? row[h] : (h === 'value' ? row : undefined);
+                  return `<td>${renderValue(val)}</td>`;
+                }).join('')}</tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    if (typeof data === 'object' && data !== null) {
+      return `
+        <div class="table-container" style="border-radius: ${settings.itemRadius}px">
+          <table>
+            <thead>
+              <tr><th>Key</th><th>Value</th></tr>
+            </thead>
+            <tbody>
+              ${Object.entries(data).map(([k, v]) => `
+                <tr>
+                  <td class="root-key">${k}</td>
+                  <td>${renderValue(v)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    return renderValue(data);
   };
 
   const generateMapHtml = (data: any, label = "Root"): string => {
     if (data === null || typeof data !== 'object') {
       return `
-        <div class="map-node map-leaf">
+        <div class="map-node map-leaf" style="border-left-color: ${settings.accentColor}; border-radius: ${settings.itemRadius}px">
           <div class="map-label">${label}</div>
-          <div class="map-value">${data}</div>
+          <div class="map-value" style="font-size: ${settings.fontSize}px">${data}</div>
         </div>
       `;
     }
@@ -395,8 +471,8 @@ export default function JSONToImage() {
 
     return `
       <div class="map-branch">
-        <div class="map-node map-parent">${label}</div>
-        <div class="map-children">
+        <div class="map-node map-parent" style="background: ${settings.accentColor}20; color: ${settings.accentColor}; border-color: ${settings.accentColor}40; border-radius: ${settings.itemRadius}px">${label}</div>
+        <div class="map-children" style="border-left-color: ${settings.accentColor}30">
           ${children.join('')}
         </div>
       </div>
@@ -426,11 +502,12 @@ export default function JSONToImage() {
             font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
           }
           .canvas-outer {
-            background: #0f172a;
+    
+            background: ${settings.bgColor};
             color: #f1f5f9;
-            border-radius: 32px;
+            border-radius: ${settings.borderRadius}px;
             box-shadow: 0 40px 80px -15px rgba(0, 0, 0, 0.7);
-            padding: 48px;
+            padding: ${settings.padding}px;
             display: flex;
             flex-direction: column;
             width: fit-content;
@@ -439,37 +516,83 @@ export default function JSONToImage() {
             border: 1px solid rgba(255,255,255,0.1);
           }
           /* Tree Styles */
-          .tree-item { position: relative; padding-left: 28px; margin: 10px 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+          .tree-item { position: relative; padding-left: 28px; margin: 10px 0; display: flex; align-items: center; gap: 8px; white-space: nowrap; font-size: ${settings.fontSize}px; }
           .collapsible { position: relative; margin-left: 16px; }
           .line { position: absolute; left: -16px; top: 0; bottom: 0; width: 2px; background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05)); border-radius: 1px; }
-          .bullet { width: 6px; height: 6px; border-radius: 50%; background: #6366f1; position: absolute; left: -19px; }
-          .key { color: #818cf8; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+          .bullet { width: 6px; height: 6px; border-radius: 50%; position: absolute; left: -19px; }
+          .key { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
           .v-string { color: #4ade80; font-weight: 500; }
           .v-number { color: #fb923c; font-weight: 600; }
           .v-boolean { color: #f472b6; font-weight: 600; }
           .v-null { color: #94a3b8; font-style: italic; }
           .v-dim { color: #475569; }
           
-          /* Table Styles */
-          .table-container { border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); width: fit-content; min-width: 100%; }
-          table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; table-layout: auto; }
-          th { background: rgba(255,255,255,0.05); color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px; padding: 20px; border-bottom: 2px solid rgba(255,255,255,0.1); white-space: nowrap; }
-          td { padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); white-space: nowrap; }
-          .dot-sep { color: #475569; padding: 0 4px; font-weight: normal; }
-          .v-array { background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+          /* Real Table Styles */
+          .table-container { 
+            border: 1px solid rgba(255,255,255,0.2); 
+            background: rgba(255,255,255,0.02); 
+            width: fit-content; 
+            min-width: 100%; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+            overflow: hidden; 
+          }
+          table { width: 100%; border-collapse: collapse; text-align: left; }
+          th { 
+            background: rgba(255,255,255,0.1); 
+            color: #fff; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            font-size: 11px; 
+            padding: 24px 20px; 
+            border: 1px solid rgba(255,255,255,0.2);
+            white-space: nowrap; 
+          }
+          td { 
+            padding: 20px; 
+            border: 1px solid rgba(255,255,255,0.15); 
+            font-size: ${settings.fontSize}px; 
+            font-weight: 500; 
+            vertical-align: top; 
+          }
+          .root-key { color: ${settings.accentColor}; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+          
+          /* Nested Table/List Styles */
+          .nested-table { width: 100%; margin: 0; border-collapse: collapse; }
+          .nested-table td { 
+            padding: 10px 12px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            font-size: 0.9em; 
+          }
+          .nested-key { 
+            color: rgba(255,255,255,0.5); 
+            font-size: 0.75em; 
+            text-transform: uppercase; 
+            font-weight: 800; 
+            width: 1%; 
+            white-space: nowrap; 
+            background: rgba(255,255,255,0.03);
+          }
+          .nested-list { display: flex; flex-direction: column; }
+          .nested-list-item { 
+            padding: 8px 12px; 
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+          }
+          .nested-list-item:last-child { border-bottom: 0; }
+          
           .v-success { color: #10b981; font-weight: 700; }
           .v-error { color: #ef4444; font-weight: 700; }
           tr:nth-child(even) { background: rgba(255,255,255,0.01); }
           
           /* Map Styles */
           .map-branch { display: flex; align-items: center; gap: 40px; position: relative; }
-          .map-children { display: flex; flex-direction: column; gap: 16px; position: relative; padding-left: 20px; border-left: 2px solid rgba(99, 102, 241, 0.2); }
-          .map-node { padding: 12px 20px; border-radius: 12px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); min-width: 140px; white-space: nowrap; }
-          .map-parent { background: #312e81; color: #c7d2fe; border-color: #4338ca; font-weight: 700; font-size: 14px; z-index: 2; position: relative; }
-          .map-leaf { display: flex; flex-direction: column; gap: 4px; border-left: 4px solid #6366f1; }
+          .map-children { display: flex; flex-direction: column; gap: 16px; position: relative; padding-left: 20px; border-left: 2px solid; }
+          .map-node { padding: 12px 20px; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); min-width: 140px; white-space: nowrap; transition: all 0.3s; }
+          .map-parent { font-weight: 700; font-size: 14px; z-index: 2; position: relative; }
+          .map-leaf { display: flex; flex-direction: column; gap: 4px; border-left: 4px solid; }
           .map-label { color: #94a3b8; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-          .map-value { color: #f1f5f9; font-size: 13px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
-          .map-branch::before { content: ''; position: absolute; left: -40px; width: 40px; height: 2px; background: rgba(99, 102, 241, 0.2); z-index: 1; }
+          .map-value { color: #f1f5f9; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+          .map-branch::before { content: ''; position: absolute; left: -40px; width: 40px; height: 2px; background: rgba(255,255,255,0.1); z-index: 1; }
           .map-children > .map-branch::before { left: -20px; width: 20px; }
         </style>
       </head>
@@ -499,7 +622,7 @@ export default function JSONToImage() {
             <Card className="flex flex-col h-125 overflow-hidden border-primary/10">
               <CardHeader className="py-3 border-b flex flex-row items-center justify-between bg-muted/20">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Braces className="h-4 w-4 text-primary" /> JSON Editor
+                  <Braces className="h-4 w-4 text-primary" /> JSON Data
                 </CardTitle>
                 <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold tracking-widest px-3" onClick={handlePrettify}>
                   Prettify
@@ -515,12 +638,12 @@ export default function JSONToImage() {
               </CardContent>
             </Card>
 
-            <Card className="flex flex-col h-125 overflow-hidden border-primary/10">
+            <Card className="flex flex-col overflow-hidden border-primary/10">
               <CardHeader className="py-3 border-b flex flex-row items-center justify-between bg-muted/5">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-primary" /> Visual Perspective
+                  <Eye className="h-4 w-4 text-primary" /> Preview
                 </CardTitle>
-                <div className="flex bg-muted/50 p-1 rounded-lg border">
+                <div className="flex bg-muted/50 p-1 gap-1 rounded border">
                   {[
                     { id: "tree", icon: LayoutGrid, label: "Tree" },
                     { id: "table", icon: TableIcon, label: "Table" },
@@ -530,7 +653,7 @@ export default function JSONToImage() {
                       key={mode.id}
                       onClick={() => setPreviewMode(mode.id as PreviewMode)}
                       className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all",
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold uppercase transition-all",
                         previewMode === mode.id ? "bg-background text-primary shadow-sm ring-1 ring-black/5" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -539,20 +662,147 @@ export default function JSONToImage() {
                   ))}
                 </div>
               </CardHeader>
-              <CardContent className="p-0 flex-1 overflow-hidden bg-muted/30 flex items-center justify-center rounded-none h-full">
-                <iframe
-                  title="Preview"
-                  className="w-full h-full border-0 bg-transparent"
-                  srcDoc={iframeSrcDoc}
-                  onLoad={(e) => {
-                    const iframe = e.currentTarget;
-                    const doc = iframe.contentDocument;
-                    if (doc) {
-                      const target = doc.getElementById("capture-target");
-                      setCaptureElement(target);
-                    }
-                  }}
-                />
+              <CardContent className="p-0 flex flex-col overflow-hidden bg-muted/30 h-125">
+                <div className="flex-1 overflow-hidden flex items-center justify-center">
+                  <iframe
+                    title="Preview"
+                    className="w-full h-full border-0 bg-transparent "
+                    srcDoc={iframeSrcDoc}
+                    onLoad={(e) => {
+                      const iframe = e.currentTarget;
+                      const doc = iframe.contentDocument;
+                      if (doc) {
+                        const target = doc.getElementById("capture-target");
+                        setCaptureElement(target);
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Customization Toolbar */}
+                <div className="p-4 bg-background border-t grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Maximize2 className="h-3 w-3" /> Canvas
+                    </Label>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-medium">
+                          <span>Radius</span>
+                          <span>{settings.borderRadius}px</span>
+                        </div>
+                        <Slider 
+                          value={[settings.borderRadius]} 
+                          max={60} 
+                          step={1} 
+                          onValueChange={([v]) => setSettings(s => ({ ...s, borderRadius: v }))} 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-medium">
+                          <span>Padding</span>
+                          <span>{settings.padding}px</span>
+                        </div>
+                        <Slider 
+                          value={[settings.padding]} 
+                          min={20}
+                          max={120} 
+                          step={1} 
+                          onValueChange={([v]) => setSettings(s => ({ ...s, padding: v }))} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Palette className="h-3 w-3" /> Colors
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <span className="text-[9px] font-medium block">Background</span>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="color" 
+                            className="h-8 w-8 p-0 border-0 rounded-full cursor-pointer overflow-hidden" 
+                            value={settings.bgColor}
+                            onChange={(e) => setSettings(s => ({ ...s, bgColor: e.target.value }))}
+                          />
+                          <span className="text-[10px] font-mono self-center uppercase">{settings.bgColor}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[9px] font-medium block">Accent</span>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="color" 
+                            className="h-8 w-8 p-0 border-0 rounded-full cursor-pointer overflow-hidden" 
+                            value={settings.accentColor}
+                            onChange={(e) => setSettings(s => ({ ...s, accentColor: e.target.value }))}
+                          />
+                          <span className="text-[10px] font-mono self-center uppercase">{settings.accentColor}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-2">
+                      <Box className="h-3 w-3" /> Structure
+                    </Label>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-medium">
+                          <span>Item Radius</span>
+                          <span>{settings.itemRadius}px</span>
+                        </div>
+                        <Slider 
+                          value={[settings.itemRadius]} 
+                          max={32} 
+                          step={1} 
+                          onValueChange={([v]) => setSettings(s => ({ ...s, itemRadius: v }))} 
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-medium">
+                          <span>Text Size</span>
+                          <span>{settings.fontSize}px</span>
+                        </div>
+                        <Slider 
+                          value={[settings.fontSize]} 
+                          min={10}
+                          max={24} 
+                          step={1} 
+                          onValueChange={([v]) => setSettings(s => ({ ...s, fontSize: v }))} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 flex flex-col justify-between">
+                    <Label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-2">
+                      <CircleDot className="h-3 w-3" /> Presets
+                    </Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { name: "Slate", bg: "#0f172a", acc: "#6366f1" },
+                        { name: "Emerald", bg: "#064e3b", acc: "#10b981" },
+                        { name: "Ruby", bg: "#450a0a", acc: "#f43f5e" },
+                        { name: "Amber", bg: "#451a03", acc: "#f59e0b" },
+                      ].map((preset) => (
+                        <button
+                          key={preset.name}
+                          className="h-6 w-6 rounded-full border-2 border-background ring-1 ring-muted transition-transform hover:scale-110"
+                          style={{ background: preset.bg }}
+                          title={preset.name}
+                          onClick={() => setSettings(s => ({ ...s, bgColor: preset.bg, accentColor: preset.acc }))}
+                        >
+                          <div className="h-2 w-2 rounded-full mx-auto" style={{ background: preset.acc }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -593,7 +843,7 @@ export default function JSONToImage() {
           </div>
 
           {history && history.length > 0 && (
-            <Card className="rounded-xl overflow-hidden">
+            <Card className="rounded-xl overflow-hidden shadow-sm">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/10">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <History className="h-5 w-5 text-primary" />
@@ -619,11 +869,11 @@ export default function JSONToImage() {
                       className="flex flex-wrap gap-4 items-center justify-between p-4 bg-muted/30 rounded-xl border group transition-all hover:border-primary/30"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="h-10 min-w-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-primary" />
+                        <div className="h-10 min-w-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                          <ImageIcon className="h-5 w-5" />
                         </div>
                         <div className="grid gap-1">
-                          <p className="font-bold text-sm">{item.input?.type}</p>
+                          <p className="font-bold text-sm tracking-tight">{item.input?.type}</p>
                           <div className="flex flex-wrap gap-2 items-center">
                             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                               {new Date(item.timestamp).toLocaleDateString()}
@@ -638,7 +888,7 @@ export default function JSONToImage() {
                         <Button
                           variant="secondary"
                           size="icon"
-                          className="h-8 w-8 rounded-full"
+                          className="h-8 w-8 rounded-full shadow-sm"
                           title="Put Back"
                           onClick={() => putBackFromHistory(item)}
                         >
@@ -647,7 +897,7 @@ export default function JSONToImage() {
                         <Button
                           variant="outline"
                           size="icon"
-                          className="h-8 w-8 rounded-full"
+                          className="h-8 w-8 rounded-full shadow-sm"
                           title="Download"
                           onClick={() => handleHistoryDownload(item)}
                         >
@@ -656,7 +906,7 @@ export default function JSONToImage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive transition-colors"
+                          className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           onClick={async () => await db.history.delete(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -678,7 +928,7 @@ export default function JSONToImage() {
           <Card className="border-t-4 border-t-primary shadow-sm overflow-hidden sticky top-24">
             <div className="p-1 bg-primary/5 border-b flex items-center justify-center py-4">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Network className="h-6 w-6" />
+                <LayoutGrid className="h-6 w-6" />
               </div>
             </div>
             <CardHeader>
@@ -686,9 +936,9 @@ export default function JSONToImage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { title: "Smart Flattening", desc: "Table mode automatically flattens nested objects into dot-notation columns.", color: "text-blue-500" },
-                { title: "Flow Representation", desc: "Map view generates a hierarchical flowchart tracking nested relationships.", color: "text-emerald-500" },
-                { title: "Status Mapping", desc: "Keywords like 'Up', 'Down', '+', or '-' are automatically color-coded.", color: "text-amber-500" },
+                { title: "Bordered Grid", desc: "Table mode now features a professional bordered grid layout for maximum data clarity.", color: "text-blue-500" },
+                { title: "Deep Nesting", desc: "Objects and lists are recursively rendered within their parent cells as nested tables.", color: "text-emerald-500" },
+                { title: "Data Integrity", desc: "No data is hidden — every property and array element is rendered in its own bordered space.", color: "text-amber-500" },
               ].map((tip, i) => (
                 <div key={i} className="space-y-1.5 p-3 rounded-lg bg-muted/50 border border-transparent hover:border-primary/20 transition-all">
                   <p className={cn("text-xs font-bold uppercase tracking-widest", tip.color)}>{tip.title}</p>
@@ -761,9 +1011,9 @@ function ToolInfo({ about, features, steps }: { about: string[]; features: any[]
             Background
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 pt-6">
+        <CardContent className="space-y-4 pt-6 text-muted-foreground">
           {about.map((p, i) => (
-            <p key={i} className="text-sm text-muted-foreground leading-relaxed">
+            <p key={i} className="text-sm leading-relaxed">
               {p}
             </p>
           ))}
@@ -781,7 +1031,7 @@ function ToolInfo({ about, features, steps }: { about: string[]; features: any[]
           <ul className="space-y-5">
             {features.map((f, i) => (
               <li key={i} className="flex gap-4">
-                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
                   <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                 </div>
                 <div>
@@ -805,7 +1055,7 @@ function ToolInfo({ about, features, steps }: { about: string[]; features: any[]
           <div className="space-y-6">
             {steps.map((s, i) => (
               <div key={i} className="flex gap-4">
-                <span className="text-xl font-black text-muted-foreground/80 leading-none">{s.step}</span>
+                <span className="text-xl font-black text-primary/20 leading-none">{s.step}</span>
                 <div>
                   <p className="text-sm font-semibold">{s.title}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed mt-1">{s.description}</p>
