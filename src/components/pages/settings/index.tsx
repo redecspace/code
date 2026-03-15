@@ -30,26 +30,17 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "next-themes";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const { setTheme, theme } = useTheme();
   const history = useLiveQuery(() => db.history.toArray());
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [mounted, setMounted] = useState(false);
-  
-  const router = useRouter()
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    
-    router.refresh()
-     
-  }, [theme, mounted]);
 
   // Group history by tool to allow tool-wise deletion
   const toolStats = useMemo(() => {
