@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'A collection of fast, free, and open source online tools.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#151221',
+    // background_color: '#ffffff',
+    // theme_color: '#151221',
     icons: [
       {
         src: '/logo.png',
