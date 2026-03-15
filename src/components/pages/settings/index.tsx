@@ -32,7 +32,7 @@ import { useTheme } from "next-themes";
 import { useEffect } from "react";
 
 export default function SettingsPage() {
-  const { setTheme, resolvedTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
   const history = useLiveQuery(() => db.history.toArray());
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -132,7 +132,7 @@ export default function SettingsPage() {
           <CardContent>
             {mounted ? (
               <RadioGroup
-                defaultValue={resolvedTheme}
+                defaultValue={theme}
                 onValueChange={(v) => setTheme(v)}
                 className="flex flex-wrap w-full gap-4"
               >
