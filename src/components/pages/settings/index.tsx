@@ -41,6 +41,26 @@ export default function SettingsPage() {
     setMounted(true);
   }, []);
 
+  // Force a browser UI refresh (status bar) when theme changes, 
+  // mimicking the behavior of opening a sidebar/dialog.
+  useEffect(() => {
+    if (!mounted) return;
+    
+    // Briefly toggle overflow on html to trigger UI chrome refresh
+    const html = document.documentElement;
+    const originalStyle = html.style.overflow;
+    
+    html.style.overflow = "hidden";
+    // Force reflow
+    void html.offsetHeight;
+    
+    const timer = setTimeout(() => {
+      html.style.overflow = originalStyle;
+    }, 10);
+    
+    return () => clearTimeout(timer);
+  }, [theme, mounted]);
+
   // Group history by tool to allow tool-wise deletion
   const toolStats = useMemo(() => {
     if (!history) return [];
