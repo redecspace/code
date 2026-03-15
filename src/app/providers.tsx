@@ -18,10 +18,10 @@ export default function AppProviders({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" 
+      <ThemeProvider 
+       defaultTheme="system"
        enableSystem
-       attribute={"class"}
-      // storageKey="redec-theme" 
+       storageKey="redec-theme" 
       >
         <SerwistProvider swUrl={swUrl}>
           <TooltipProvider>
