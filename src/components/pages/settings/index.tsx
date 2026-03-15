@@ -105,9 +105,10 @@ export default function SettingsPage() {
   const totalHistoryCount = history?.length || 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-10">
+    <div className="max-w-5xl mr-auto space-y-8 animate-fade-in pb-10">
       <div>
-        <h1 className="text-3xl font-black font-display flex items-center gap-3">
+              
+        <h1 className="text-xl sm:text-3xl font-extrabold font-display flex items-center gap-3">
           <Settings className="h-8 w-8 text-primary" />
           Settings
         </h1>
@@ -191,7 +192,7 @@ export default function SettingsPage() {
         {/* Data & Storage Card */}
         <Card className="border-t-4 border-t-primary">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex gap-2 flex-wrap items-center justify-between">
               <div className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-primary" />
                 <CardTitle>Data & Storage</CardTitle>
@@ -205,7 +206,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+              <div className="flex gap-2 flex-wrap items-center justify-between p-4 bg-muted/30 rounded-lg border">
                 <div>
                   <p className="font-bold">Clear All Data</p>
                   <p className="text-sm text-muted-foreground">
@@ -222,7 +223,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+              <div className="flex gap-2 flex-wrap items-center justify-between p-4 bg-muted/30 rounded-lg border">
                 <div>
                   <p className="font-bold">Reset Application Cache</p>
                   <p className="text-sm text-muted-foreground">

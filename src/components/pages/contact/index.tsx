@@ -80,11 +80,11 @@ export default function ContactPage() {
 
       <Card className="rounded border bg-muted/30">
         <CardContent className="pt-6">
-          <div className="flex gap-4 items-start">
-            <div className="p-2 rounded bg-background border mt-1">
+          <div className="flex flex-wrap gap-4 items-start w-full">
+            <div className="p-2 w-fit rounded bg-background border mt-1">
               <MessageSquare className="h-5 w-5 text-primary" />
             </div>
-            <div>
+            <div className="lg:flex-1">
               <h3 className="font-bold mb-1">Collaborations & Partnerships</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Interested in integrating our tools or proposing a partnership? Please reach out directly to our support email with "Partnership" in the subject line. We're always open to interesting projects and collaborations.

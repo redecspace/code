@@ -5,7 +5,9 @@
 @plugin "@tailwindcss/typography";
 
 
-@custom-variant dark (&:is(.dark *));
+/* @custom-variant dark (&:is(.dark *)); */
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: 40 33% 98%;
