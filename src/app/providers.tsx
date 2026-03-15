@@ -2,6 +2,7 @@
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/common/theme-provider";
+import { ThemeColorUpdater } from "@/components/common/theme-color-updater";
 import { Toaster } from "sonner";
 import { SerwistProvider } from "@serwist/next/react";
 
@@ -23,6 +24,7 @@ export default function AppProviders({
        enableSystem
        storageKey="redec-theme" 
       >
+        <ThemeColorUpdater />
         <SerwistProvider swUrl={swUrl}>
           <TooltipProvider>
             {children}
